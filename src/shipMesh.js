@@ -15,6 +15,14 @@ const STATIONS = 72;
 const HALF_SECTIONS = 20; // points around half-breadth (keel → deck → centerline)
 export const BREAK_FRACTION = 0.06; // hull parts at x = L * BREAK_FRACTION
 const PAINT_WATERLINE = 0.025;
+const BOW_ENTRANCE_POWER = {
+  blunt: 0.58,
+  modern: 0.9,
+  edwardian: 0.93,
+  olympic: 1.07,
+  raked: 1.22,
+  fine: 1.4,
+};
 
 export function buildShipMesh(ship) {
   const root = new THREE.Group();
@@ -684,10 +692,14 @@ function stationShape(u, ship, style) {
   const mid = 1 - Math.pow(Math.abs(u - 0.5) * 2, 2.4) * 0.08;
   let beamScale;
   if (u < 0.2) {
-    // Hollow entrance: a sharp stem, not a spoon bow
+    // Elliptical entrance: breadth recovers quickly abaft the stem instead of
+    // tapering to a needle across the entire forward fifth. Bow type supplies
+    // the broad silhouette while bowFine remains a small continuous trim.
     const t = u / 0.2;
-    const pow = 1.45 + style.bowFine * 1.05;
-    beamScale = Math.pow(t, pow) * (0.9 + 0.1 * t);
+    const ellipse = Math.sqrt(Math.max(0, 1 - Math.pow(1 - t, 2)));
+    const typePower = BOW_ENTRANCE_POWER[style.bowType] ?? BOW_ENTRANCE_POWER.olympic;
+    const fineTrim = ((style.bowFine ?? 0.9) - 0.9) * 0.35;
+    beamScale = Math.pow(ellipse, typePower + fineTrim) * mid;
   } else if (u > 0.8) {
     // Counter stern: round in plan, so the deck ends in a full ellipse
     const s = (u - 0.8) / 0.2;
@@ -740,11 +752,13 @@ function sectionPoint(u, s, ship, style) {
     let flareAmt = style.flare * 0.22 * (above / Math.max(0.01, st.deckY));
     if (u < 0.18) flareAmt += style.flare * 0.95 * (1 - u / 0.18) * (above / Math.max(0.01, st.deckY));
     const flareZ = z * (1 + flareAmt);
-    // Cutwater: the stem itself is a line, the forefoot is even finer
+    // Keep a modestly fine submerged forefoot without pinching the complete
+    // section a second time. The longitudinal envelope already closes it.
     let pinch = 1;
-    if (u < 0.14) {
-      pinch = Math.pow(u / 0.14, 0.85);
-      if (t < 0.4) pinch *= 0.25 + 0.75 * (t / 0.4);
+    if (u < 0.06 && y < 0) {
+      const below = THREE.MathUtils.clamp(-y / Math.max(0.01, -st.keelY), 0, 1);
+      const nearStem = 1 - THREE.MathUtils.smoothstep(u, 0, 0.06);
+      pinch -= nearStem * Math.pow(below, 1.2) * 0.16;
     }
     // Run aft: fine below the waterline toward the sternpost, full above it
     if (u > 0.74) {
@@ -763,7 +777,7 @@ function sectionPoint(u, s, ship, style) {
   return finishBow(new THREE.Vector3(st.x, y, z), u, ship, style, st);
 }
 
-/** Raked stem: the deck overhangs the forefoot. The tip itself has no breadth. */
+/** Raked stem: the deck overhangs the forefoot. */
 function finishBow(p, u, ship, style, st) {
   if (u < 0.24) {
     const stem = 1 - u / 0.24;
@@ -772,7 +786,6 @@ function finishBow(p, u, ship, style, st) {
     const rake = (style.bowRake ?? 0.06) * ship.length;
     p.x -= rake * stem * stem * Math.pow(height01, 1.1);
   }
-  if (u < 0.01) p.z = 0;
   return p;
 }
 
@@ -900,8 +913,8 @@ function buildHullGeometry(ship, style) {
     }
   }
 
-  // Stern cap. The bow is already closed by the pinched stem — a fan
-  // there flattens the cutwater into a spoon.
+  // Stern cap. The bow closes at its zero-breadth stem station; a fan there
+  // would flatten the cutwater into a spoon.
   {
     const i = stations;
     const keel = sb[i][0];
@@ -925,21 +938,30 @@ function buildDeck(ship, style, mat) {
   const positions = [];
   const uvs = [];
   const indices = [];
+  const rows = [];
   for (let i = 0; i <= steps; i++) {
-    const u = 0.015 + (i / steps) * 0.95;
+    const u = (i / steps) * 0.965;
     const edge = sectionPoint(u, 0.72, ship, style);
     const center = sectionPoint(u, 1, ship, style);
     const y = Math.max(edge.y, center.y) + 0.025;
     const z = edge.z * 0.98;
-    positions.push(edge.x, y, z, edge.x, y, -z);
-    uvs.push(edge.x / 2.4, z / 1.2, edge.x / 2.4, -z / 1.2);
+    if (i === 0) {
+      const stem = positions.length / 3;
+      positions.push(edge.x, y, 0);
+      uvs.push(edge.x / 2.4, 0);
+      rows.push([stem, stem]);
+    } else {
+      const starboard = positions.length / 3;
+      positions.push(edge.x, y, z, edge.x, y, -z);
+      uvs.push(edge.x / 2.4, z / 1.2, edge.x / 2.4, -z / 1.2);
+      rows.push([starboard, starboard + 1]);
+    }
   }
   for (let i = 0; i < steps; i++) {
-    const a = i * 2;
-    const b = a + 1;
-    const c = a + 2;
-    const d = a + 3;
-    indices.push(a, c, b, b, c, d);
+    const [a, b] = rows[i];
+    const [c, d] = rows[i + 1];
+    if (a === b) indices.push(a, c, d);
+    else indices.push(a, c, b, b, c, d);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
@@ -947,6 +969,7 @@ function buildDeck(ship, style, mat) {
   geo.setIndex(indices);
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, mat);
+  mesh.name = "deck-overlay";
   mesh.receiveShadow = true;
   mesh.castShadow = true;
   mesh.userData.sliceHull = true;
@@ -1145,11 +1168,10 @@ function buildMasts(root, ship, style, mats) {
   // Rigging: forestay, backstay, shrouds, and the wireless aerial between mastheads
   const seg = [];
   const line = (a, b) => seg.push(a[0], a[1], a[2], b[0], b[1], b[2]);
-  const stem = stationShape(0.004, ship, style);
-  const stemX = stem.x - (style.bowRake ?? 0.06) * L;
+  const stem = sectionPoint(0.004, 1, ship, style);
   const stern = stationShape(0.99, ship, style);
   const [fore, main] = tops;
-  line([stemX + 0.05, stem.deckY + 0.1, 0], [fore.x, fore.y, 0]);
+  line([stem.x + 0.05, stem.y + 0.1, 0], [fore.x, fore.y, 0]);
   line([stern.x, stern.deckY + 0.1, 0], [main.x, main.y, 0]);
   for (const dz of [-0.08, 0.08]) line([fore.x, fore.y - 0.05, dz], [main.x, main.y - 0.05, dz]);
   for (const t of tops) {

@@ -83,9 +83,23 @@ const boiler = createHazard(vent, getDisaster("boiler"), () => 0);
 for (let i = 0; i < 200 && !boiler.resolved; i++) updateHazard(vent, boiler, 0.05);
 assert.equal(boiler.outcome, "avoided", "cutting throttle should vent the boiler");
 
+const hullCache = new WeakMap();
+
+function shipMeshes(ship) {
+  if (!hullCache.has(ship)) {
+    const root = buildShipMesh(ship);
+    const hullMesh = root.children.find((c) => c.geometry?.attributes?.position?.count > 500);
+    hullCache.set(ship, { root, hullMesh });
+  }
+  return hullCache.get(ship);
+}
+
+function shipHull(ship) {
+  return shipMeshes(ship).hullMesh;
+}
+
 function hullBreadths(ship, stationIndex) {
-  const root = buildShipMesh(ship);
-  const hullMesh = root.children.find((c) => c.geometry?.attributes?.position?.count > 500);
+  const hullMesh = shipHull(ship);
   const pos = hullMesh.geometry.attributes.position;
   const uv = hullMesh.geometry.attributes.uv;
   const targetU = stationIndex / 72;
@@ -106,7 +120,7 @@ function hullBreadths(ship, stationIndex) {
     }
   }
 
-  return { deck, waterline, root, hullMesh };
+  return { deck, waterline };
 }
 
 for (const ship of SHIPS) {
@@ -115,6 +129,9 @@ for (const ship of SHIPS) {
   const forward = hullBreadths(ship, 3);
   const shoulder = hullBreadths(ship, 7);
   const midship = hullBreadths(ship, 36);
+  const { root, hullMesh } = shipMeshes(ship);
+  const deckOverlay = root.getObjectByName("deck-overlay");
+  const rigging = root.getObjectByName("rigging");
 
   assert.ok(stem.deck < 1e-6, `${ship.id} deck closes on the stem (${stem.deck})`);
   assert.ok(stem.waterline < 1e-6, `${ship.id} waterline closes on the stem (${stem.waterline})`);
@@ -134,6 +151,55 @@ for (const ship of SHIPS) {
     shoulder.deck / midship.deck > 0.75,
     `${ship.id} holds deck breadth through the forward tenth (${shoulder.deck / midship.deck})`,
   );
+  assert.ok(deckOverlay?.isMesh, `${ship.id} exposes its teak deck overlay for geometry checks`);
+  const deckPositions = deckOverlay.geometry.attributes.position;
+  assert.ok(
+    Math.abs(deckPositions.getZ(0)) < 1e-6,
+    `${ship.id} teak overlay closes at the stem`,
+  );
+  const deckNormals = deckOverlay.geometry.attributes.normal;
+  assert.ok(
+    Math.hypot(deckNormals.getX(0), deckNormals.getY(0), deckNormals.getZ(0)) > 0.99,
+    `${ship.id} teak stem has a valid surface normal`,
+  );
+  assert.ok(rigging?.isLineSegments, `${ship.id} has rigging geometry`);
+  const riggingPositions = rigging.geometry.attributes.position;
+  let stemDeckX = Infinity;
+  let stemDeckY = -Infinity;
+  const hullUv = hullMesh.geometry.attributes.uv;
+  const hullPositions = hullMesh.geometry.attributes.position;
+  for (let i = 0; i < hullPositions.count; i++) {
+    if (Math.abs(hullUv.getX(i)) < 1e-6 && hullUv.getY(i) > 0.99) {
+      stemDeckX = Math.min(stemDeckX, hullPositions.getX(i));
+      stemDeckY = Math.max(stemDeckY, hullPositions.getY(i));
+    }
+  }
+  assert.ok(
+    riggingPositions.getX(0) >= stemDeckX && riggingPositions.getX(0) - stemDeckX < ship.length * 0.015,
+    `${ship.id} forestay starts at the raked stem`,
+  );
+  assert.ok(
+    Math.abs(riggingPositions.getY(0) - (stemDeckY + 0.1)) < ship.height * 0.02,
+    `${ship.id} forestay height follows the stem deck`,
+  );
+  assert.ok(Math.abs(riggingPositions.getZ(0)) < 1e-6, `${ship.id} forestay starts on centerline`);
+
+  let priorDeck = -Infinity;
+  for (let station = 0; station <= 14; station++) {
+    const breadth = hullBreadths(ship, station).deck;
+    assert.ok(
+      breadth + midship.deck * 0.025 >= priorDeck,
+      `${ship.id} entrance has no abrupt reversal at station ${station} (${breadth} < ${priorDeck})`,
+    );
+    priorDeck = breadth;
+  }
+
+  for (const name of ["position", "normal"]) {
+    const attribute = hullMesh.geometry.attributes[name];
+    for (let i = 0; i < attribute.array.length; i++) {
+      assert.ok(Number.isFinite(attribute.array[i]), `${ship.id} ${name} ${i} is finite`);
+    }
+  }
 }
 
 const nomadicForward = hullBreadths(getShip("nomadic"), 3);
@@ -145,10 +211,21 @@ assert.ok(
   "Nomadic's blunt entrance should be visibly fuller than Lusitania's fine entrance",
 );
 
+const fullnessOrder = ["nomadic", "andrea-doria", "empress", "titanic", "queen-elizabeth", "lusitania"];
+for (let i = 1; i < fullnessOrder.length; i++) {
+  const fuller = getShip(fullnessOrder[i - 1]);
+  const finer = getShip(fullnessOrder[i]);
+  const fullerRatio = hullBreadths(fuller, 3).deck / hullBreadths(fuller, 36).deck;
+  const finerRatio = hullBreadths(finer, 3).deck / hullBreadths(finer, 36).deck;
+  assert.ok(
+    fullerRatio - finerRatio > 0.015,
+    `${fuller.id} bow type is visibly fuller than ${finer.id} (${fullerRatio} vs ${finerRatio})`,
+  );
+}
+
 const mesh = buildShipMesh(getShip("titanic"));
 const hull = mesh.children.find((c) => c.geometry?.attributes?.position?.count > 500);
 const pos = hull.geometry.attributes.position;
-let minX = Infinity;
 let keelX = 0;
 let keelY = Infinity;
 let deckX = 0;
@@ -157,7 +234,6 @@ for (let i = 0; i < pos.count; i++) {
   const x = pos.getX(i);
   const y = pos.getY(i);
   const z = pos.getZ(i);
-  if (x < minX) minX = x;
   if (y < keelY) {
     keelY = y;
     keelX = x;
