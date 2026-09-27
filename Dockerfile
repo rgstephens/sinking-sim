@@ -14,7 +14,7 @@ RUN npm test && npm run build
 
 FROM nginx:alpine AS runtime
 
-ARG VERSION=1.0.0
+ARG VERSION=1.0.1
 ARG BUILD_DATE="27 Sep 2026"
 ARG OCI_CREATED="2026-09-27T00:00:00Z"
 
