@@ -104,7 +104,7 @@ Replace the long, compounded needle-bow taper with a short, full entrance that c
 ### Checkpoint: Complete
 
 - [x] Every issue #6 acceptance criterion has test or visual evidence.
-- [ ] Changes are committed, merged, released as `1.0.1`, and verified on Dell.
+- [x] Changes are committed, merged, released as `1.0.1`, and verified on Dell.
 
 ## Risks and Mitigations
 

@@ -74,10 +74,18 @@ Production evidence:
 - [x] Pass unit tests and the production build.
 - [x] Verify plan and bow-on silhouettes for every current ship in a real browser.
 - [x] Complete three bounded adversarial cycles and five-axis code-quality review.
-- [ ] Merge the implementation PR, publish `1.0.1`, deploy to Dell, and verify production.
+- [x] Merge the implementation PR, publish `1.0.1`, deploy to Dell, and verify production.
 
 ## Issue #6 review
 
 All seven ships were inspected in WebGL2 from plan and calibrated head-on views. The corrected entrances close at the stem without a long needle taper; the six `bowType` families have distinct fullness, Nomadic is visibly fuller than Lusitania, rake/flare/sheer remain readable, forestays meet the generated stems, teak reaches the bow without a material seam, and stern counters are unchanged. Evidence contact sheets are available at `/tmp/sinking-sim-issue6.5oPktH/plan-contact.png` and `/tmp/sinking-sim-issue6.5oPktH/bow-contact.png`; the representative Titanic views were refreshed after the final topology fix.
 
-Automated checks cover forward deck/waterline fullness, exact stem closure, type ordering, entrance continuity, finite hull data, a valid teak-stem normal, forestay alignment, breakup invariants, and the existing simulation suite. Production release verification is pending.
+Automated checks cover forward deck/waterline fullness, exact stem closure, type ordering, entrance continuity, finite hull data, a valid teak-stem normal, forestay alignment, breakup invariants, and the existing simulation suite.
+
+Production release evidence:
+
+- PR #9 merged at commit `49d6a571a38d22bfdd1cf767789fad603484d557`; issue #6 closed and tag `v1.0.1` was published.
+- Registry manifest `sha256:59f41ae870218b1aa1b8c0842129a7ec0087b11ad9c7fe165b7a7921f8463e65` contains verified `linux/amd64` and `linux/arm64` images.
+- Dell runs healthy image `registry.gstephens.org/sinking-sim:1.0.1`; startup logs print `Sinking Sim 1.0.1 (27 Sep 2026)` and `1.0.0` remains the rollback tag.
+- Public `/healthz` and `/` return HTTP 200 through Nginx Proxy Manager; the existing Let's Encrypt certificate remains valid through 26 Dec 2026.
+- A production browser obtained WebGL2 with zero console errors, visibly displayed `v1.0.1 · 27 Sep 2026`, and transitioned RMS Titanic to `Underway`. Final screenshot: `/tmp/sinking-sim-issue6.5oPktH/production-1.0.1.png`.
