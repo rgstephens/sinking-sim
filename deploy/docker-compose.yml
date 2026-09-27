@@ -1,0 +1,13 @@
+services:
+  sinking-sim-web:
+    image: registry.gstephens.org/sinking-sim:${TAG:-1.0.0}
+    container_name: sinking-sim-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8089:80"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    external: true

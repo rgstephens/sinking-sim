@@ -12,6 +12,13 @@ import {
 } from "./physics.js";
 import { createHazard, updateHazard } from "./hazards.js";
 import { buildShipMesh, splitShip } from "./shipMesh.js";
+import { formatBuildInfo } from "./buildInfo.js";
+
+assert.equal(
+  formatBuildInfo("1.0.0", "27 Sep 2026"),
+  "v1.0.0 · 27 Sep 2026",
+  "release metadata uses the service UI convention",
+);
 
 const bow0 = bowDirection(0);
 const stbd0 = starboardDirection(0);

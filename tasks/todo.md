@@ -41,3 +41,27 @@ Beyond the plan:
 - Seabed rocks were torn into shards (non-indexed jitter); keyed by position now.
 
 Known limits: the Kelvin wake is straight behind the current heading, not a trail of the path; the dock is a free-floating pier as before.
+
+# Dell deployment (GitHub issue #3)
+
+- [x] Add multi-stage Docker/nginx packaging, health check, and release metadata.
+- [x] Add multi-architecture registry Make targets.
+- [x] Add `deploy/` Compose configuration, environment template, and runbook.
+- [x] Remove known dependency vulnerabilities and pass local release checks.
+- [x] Publish the `1.0.0` amd64/arm64 image manifest.
+- [x] Deploy `sinking-sim-web` at `~/Docker/sinking-sim` on Dell.
+- [x] Configure Namecheap DNS, ddclient, Nginx Proxy Manager, and Let's Encrypt.
+- [x] Verify the live HTTPS game and document deployment evidence.
+
+## Deployment review
+
+Local checks passed: unit tests, Vite production build plus release-metadata validation, zero-vulnerability npm audit, amd64/arm64 image builds, nginx syntax, native container health/content/startup metadata, shell syntax, and diff whitespace.
+
+Production evidence:
+
+- Registry manifest `sha256:1620cd7d4c1961b8e85c001b3d3958c63a58b8c59cc2d212383ce70d74f997de` contains `linux/amd64` and `linux/arm64`.
+- Dell runs healthy container `sinking-sim-web` from `registry.gstephens.org/sinking-sim:1.0.0` at `~/Docker/sinking-sim`, bound to `127.0.0.1:8089` and `app-network`.
+- Namecheap A record `sinking-sim.gstephens.org` resolves to `50.34.59.250`; Dell ddclient tracks the hostname and was restarted successfully.
+- Nginx Proxy Manager proxy host #35 forwards HTTP to `sinking-sim-web:80`; Force SSL, HTTP/2, and Block Common Exploits are enabled; WebSockets are disabled.
+- Let's Encrypt certificate #45 is valid from 27 Sep 2026 through 26 Dec 2026.
+- `https://sinking-sim.gstephens.org/healthz` and `/` return HTTP 200. The real browser rendered the production game with WebGL2, showed `v1.0.0 · 27 Sep 2026`, and transitioned RMS Titanic to `Underway` after **Get Underway**.
