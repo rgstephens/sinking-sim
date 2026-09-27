@@ -20,6 +20,10 @@ npm run build
 npm run preview
 ```
 
+## Deploy
+
+The production image is published as `registry.gstephens.org/sinking-sim:<version>` for amd64 and arm64. See [`deploy/README.md`](deploy/README.md) for the Dell deployment, DNS, proxy, verification, update, and rollback procedure.
+
 ## Play
 
 1. Choose a ship and an atmosphere.

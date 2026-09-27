@@ -244,6 +244,17 @@ button:active {
   font-weight: 600;
 }
 
+.build-info {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  color: rgba(210, 220, 230, 0.6);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+}
+
 @media (max-width: 720px) {
   #hud {
     padding: 10px;
@@ -279,6 +290,11 @@ button:active {
     top: 58px;
     text-align: right;
     font-size: 11px;
+  }
+
+  .build-info {
+    left: 8px;
+    bottom: 96px;
   }
 
   .alert {

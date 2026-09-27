@@ -1,0 +1,16 @@
+.git
+.gitignore
+.DS_Store
+.history
+dist
+node_modules
+tasks
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+*.key
+*.pem
+*.md
+!README.md

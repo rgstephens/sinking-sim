@@ -19,6 +19,7 @@ import { createHazard, pickDisaster, updateHazard, hazardWarning } from "./hazar
 import { getDisaster } from "./disasters.js";
 import { createScene } from "./scene.js";
 import { createAtmosphere } from "./atmosphere.js";
+import { formatBuildInfo } from "./buildInfo.js";
 
 const canvas = document.getElementById("c");
 const shipSelect = document.getElementById("ship-select");
@@ -38,6 +39,9 @@ const statHead = document.getElementById("stat-head");
 const statFlood = document.getElementById("stat-flood");
 const statList = document.getElementById("stat-list");
 const statState = document.getElementById("stat-state");
+const buildInfo = document.getElementById("build-info");
+
+buildInfo.textContent = formatBuildInfo(__APP_VERSION__, __BUILD_DATE__);
 
 for (const s of SHIPS) {
   const opt = document.createElement("option");
