@@ -29,3 +29,14 @@ npm run preview
 5. `C` cycles chase, free, and dock cameras. Drag to orbit in free camera. Scroll to zoom.
 
 The speed slider runs from pause (`0`) through `4×`. **Space** toggles pause. `1`, `2`, and `4` jump to those speeds. **Reset** returns to the setup screen. Shortcuts stay in the lower right. Speed, heading, flood, and list sit in the bubbles along the bottom.
+
+## Graphics
+
+- `sky.js` — Preetham sky with drifting clouds, plus an overcast cloud deck for Storm and Overcast Fog. It also captures the environment maps used for reflections and image-based lighting.
+- `water.js` — ocean that reaches the horizon: 8 Gerstner waves, ripple normal maps, whitecaps, sun glitter, bow and Kelvin wake, a mirror image of the ship, refraction of anything under the surface, and Snell's window from below.
+- `shipMesh.js` — lofted hull with a raked stem and counter stern. The hull shader paints antifouling, boot-top, sheer line, portholes and weathering. Also builds the windowed superstructure, raked funnels, davits, rigging and hospital livery.
+- `effects.js` — coal smoke, fire, spray and bubble particles.
+- `scene.js` — HDR multisampled render, refraction pass, bloom keyed to exposure, vignette and grade, seabed, iceberg and tsunami meshes.
+- `atmosphere.js` — one table per preset: sun, sky, clouds, exposure, bloom, water colour, sea state and window glow.
+
+In dev builds, `__sinking.spawn("iceberg")` and `__sinking.trigger("mine")` in the console bring on a hazard or a hit straight away.

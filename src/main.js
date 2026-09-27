@@ -13,8 +13,10 @@ import {
   triggerDisaster,
   headingDegrees,
   bowDirection,
+  MAX_SPEED,
 } from "./physics.js";
 import { createHazard, pickDisaster, updateHazard, hazardWarning } from "./hazards.js";
+import { getDisaster } from "./disasters.js";
 import { createScene } from "./scene.js";
 import { createAtmosphere } from "./atmosphere.js";
 
@@ -127,7 +129,6 @@ function resetSimulation() {
   world.clearHazard();
   world.clearDebris();
   world.wave.visible = false;
-  world.smoke.visible = false;
   placePreviewShip();
 }
 
@@ -138,14 +139,46 @@ function updateSpeedLabel() {
   else speedReadout.textContent = `${v.toFixed(v % 1 === 0 ? 0 : 2)}×`;
 }
 
+/**
+ * Visual heave, pitch and roll from the swell under the hull. Sampled from
+ * the same waves the ocean draws; the physics never sees it. Fades out as the
+ * ship goes under.
+ */
+function swellPose(ship, pos, yaw) {
+  const bow = bowDirection(yaw);
+  const stbd = { x: -bow.z, z: bow.x };
+  const hl = ship.length * 0.42;
+  const hb = ship.beam * 0.5;
+  const minW = ship.length * 0.35;
+  const h = (dx, dz) => world.sampleWave(pos.x + dx, pos.z + dz, minW);
+  const fore = h(bow.x * hl, bow.z * hl);
+  const aft = h(-bow.x * hl, -bow.z * hl);
+  const port = h(-stbd.x * hb, -stbd.z * hb);
+  const star = h(stbd.x * hb, stbd.z * hb);
+  const afloat = Math.max(0, Math.min(1, 1 + pos.y / ship.height));
+  return {
+    heave: ((fore + aft + port + star) / 4) * 0.8 * afloat,
+    pitch: Math.atan2(fore - aft, hl * 2) * 0.8 * afloat,
+    roll: Math.atan2(star - port, hb * 2) * 0.35 * afloat,
+  };
+}
+
 function applyShipPose(mesh, state) {
+  const swell = swellPose(state.ship, state.position, state.rotation.yaw);
   mesh.position.x = state.position.x;
-  mesh.position.y = state.position.y;
+  mesh.position.y = state.position.y + swell.heave;
   mesh.position.z = state.position.z;
   mesh.rotation.order = "YXZ";
   mesh.rotation.y = state.rotation.yaw;
-  mesh.rotation.x = state.rotation.roll;
-  mesh.rotation.z = -state.rotation.pitch;
+  mesh.rotation.x = state.rotation.roll + swell.roll;
+  mesh.rotation.z = -state.rotation.pitch - swell.pitch;
+}
+
+function applyPreviewPose(mesh, ship) {
+  const swell = swellPose(ship, { x: 0, y: 0, z: 0 }, 0);
+  mesh.position.set(0, swell.heave, 0);
+  mesh.rotation.order = "YXZ";
+  mesh.rotation.set(swell.roll, 0, -swell.pitch);
 }
 
 function applyInput(dt) {
@@ -240,12 +273,16 @@ function presentShip() {
   const rudder = shown.getObjectByName("rudder");
   if (rudder) rudder.rotation.y = -sim.helm * 0.55;
 
+  // Dynamos hold until the break or until the sea reaches the boat deck.
+  const power = sim.broken ? 0 : Math.max(0, Math.min(1, 1 + (sim.position.y + 0.3) / 1.2));
+  world.dimShipLights(power);
+
   updateShipFloodVisuals(shown, sim);
   updateDamageEffects(shown, sim);
-  world.updateSmoke(sim, shown);
+  world.updateEffects(sim, shown);
 
   if (world.getCameraMode() === "chase") {
-    world.updateChase(shown.position, sim.rotation.yaw);
+    world.updateChase(shown.position, sim.rotation.yaw, sim.ship);
   } else if (world.getCameraMode() === "orbit") {
     world.controls.target.lerp(
       {
@@ -258,12 +295,42 @@ function presentShip() {
   }
 }
 
+/** What the ocean needs to draw the hull collar and wake. */
+function oceanShipInfo() {
+  const mesh = world.getShip();
+  if (!mesh) return null;
+  const ship = sim ? sim.ship : getShip(shipSelect.value);
+  const y = sim ? sim.position.y : 0;
+  return {
+    pos: mesh.position,
+    yaw: sim ? sim.rotation.yaw : 0,
+    halfLen: ship.length * 0.5,
+    halfBeam: ship.beam * 0.5,
+    speed01: sim ? Math.max(0, Math.min(1, Math.abs(sim.speed) / MAX_SPEED)) : 0,
+    afloat01: Math.max(0, Math.min(1, 1 + y / (ship.draft * 1.5))) * (sim?.broken ? 0.5 : 1),
+    body: reflectionBody(mesh, ship),
+  };
+}
+
+/** Boxes the water traces for the ship's reflection (see water.js). */
+function reflectionBody(mesh, ship) {
+  const deck = mesh.userData.boatDeck;
+  const hullTop = ship.height * 0.3;
+  return {
+    hullTop,
+    superTop: deck ? deck.y : hullTop,
+    superHalfBeam: deck ? deck.beam / 2 : 0,
+    superHalfLen: deck ? (deck.x1 - deck.x0) / 2 : 0,
+    hullColor: ship.hullColor,
+    superColor: ship.superstructureColor,
+  };
+}
+
 function tick(now) {
   const rawDt = Math.min(0.05, (now - lastT) / 1000);
   lastT = now;
 
-  const shipMesh = world.getShip();
-  world.animateWater(rawDt, shipMesh ? shipMesh.position : null);
+  world.animateWater(rawDt, oceanShipInfo());
 
   if (running && sim) {
     applyInput(rawDt);
@@ -277,6 +344,10 @@ function tick(now) {
     presentShip();
     updateDash();
     world.updateDebris(rawDt);
+  } else {
+    const preview = world.getShip();
+    if (preview) applyPreviewPose(preview, getShip(shipSelect.value));
+    world.updateEffects(null, null);
   }
 
   world.render();
@@ -334,3 +405,22 @@ window.addEventListener("blur", () => held.clear());
 placePreviewShip();
 updateSpeedLabel();
 requestAnimationFrame(tick);
+
+if (import.meta.env.DEV) {
+  // Console hooks for checking visuals: __sinking.trigger("mine")
+  window.__sinking = {
+    world,
+    atmo,
+    getSim: () => sim,
+    spawn(id) {
+      if (!sim) startSimulation();
+      hazard = createHazard(sim, getDisaster(id));
+    },
+    trigger(id) {
+      if (!sim) startSimulation();
+      const disaster = getDisaster(id);
+      triggerDisaster(sim, disaster);
+      applyDamageVisuals(world.getShip(), disaster, sim.ship);
+    },
+  };
+}
