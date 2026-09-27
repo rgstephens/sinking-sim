@@ -41,7 +41,7 @@ Package Sinking Sim as a versioned, multi-architecture nginx image, publish rele
 - [x] Container is healthy and logs show release metadata.
 - [x] HTTPS health check returns 200 with a valid certificate.
 - [x] Critical browser flow loads, obtains WebGL2, and starts the game.
-- [ ] GitHub issue #3 acceptance criteria are recorded and closed if fully satisfied.
+- [x] GitHub issue #3 acceptance criteria are recorded; close the issue when this deployment change merges.
 
 ## Risks and Mitigations
 
