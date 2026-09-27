@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { getShip } from "./ships.js";
+import { SHIPS, getShip } from "./ships.js";
 import { getDisaster } from "./disasters.js";
 import {
   createSimulation,
@@ -83,6 +83,68 @@ const boiler = createHazard(vent, getDisaster("boiler"), () => 0);
 for (let i = 0; i < 200 && !boiler.resolved; i++) updateHazard(vent, boiler, 0.05);
 assert.equal(boiler.outcome, "avoided", "cutting throttle should vent the boiler");
 
+function hullBreadths(ship, stationIndex) {
+  const root = buildShipMesh(ship);
+  const hullMesh = root.children.find((c) => c.geometry?.attributes?.position?.count > 500);
+  const pos = hullMesh.geometry.attributes.position;
+  const uv = hullMesh.geometry.attributes.uv;
+  const targetU = stationIndex / 72;
+  let deck = 0;
+  let waterline = 0;
+  let waterlineDelta = Infinity;
+
+  for (let i = 0; i < pos.count; i++) {
+    if (Math.abs(uv.getX(i) - targetU) > 1e-6) continue;
+    const halfBreadth = Math.abs(pos.getZ(i));
+    if (uv.getY(i) >= 0.84) deck = Math.max(deck, halfBreadth);
+    const delta = Math.abs(pos.getY(i));
+    if (delta < waterlineDelta - 1e-6) {
+      waterlineDelta = delta;
+      waterline = halfBreadth;
+    } else if (Math.abs(delta - waterlineDelta) <= 1e-6) {
+      waterline = Math.max(waterline, halfBreadth);
+    }
+  }
+
+  return { deck, waterline, root, hullMesh };
+}
+
+for (const ship of SHIPS) {
+  const stem = hullBreadths(ship, 0);
+  const first = hullBreadths(ship, 1);
+  const forward = hullBreadths(ship, 3);
+  const shoulder = hullBreadths(ship, 7);
+  const midship = hullBreadths(ship, 36);
+
+  assert.ok(stem.deck < 1e-6, `${ship.id} deck closes on the stem (${stem.deck})`);
+  assert.ok(stem.waterline < 1e-6, `${ship.id} waterline closes on the stem (${stem.waterline})`);
+  assert.ok(
+    first.deck / midship.deck > 0.25,
+    `${ship.id} gains deck breadth immediately abaft the stem (${first.deck / midship.deck})`,
+  );
+  assert.ok(
+    forward.deck / midship.deck > 0.45,
+    `${ship.id} deck is at least 45% full by 4.2% of length (${forward.deck / midship.deck})`,
+  );
+  assert.ok(
+    forward.waterline / midship.waterline > 0.35,
+    `${ship.id} waterline is not razor-thin at 4.2% of length (${forward.waterline / midship.waterline})`,
+  );
+  assert.ok(
+    shoulder.deck / midship.deck > 0.75,
+    `${ship.id} holds deck breadth through the forward tenth (${shoulder.deck / midship.deck})`,
+  );
+}
+
+const nomadicForward = hullBreadths(getShip("nomadic"), 3);
+const nomadicMidship = hullBreadths(getShip("nomadic"), 36);
+const lusitaniaForward = hullBreadths(getShip("lusitania"), 3);
+const lusitaniaMidship = hullBreadths(getShip("lusitania"), 36);
+assert.ok(
+  nomadicForward.deck / nomadicMidship.deck - lusitaniaForward.deck / lusitaniaMidship.deck > 0.1,
+  "Nomadic's blunt entrance should be visibly fuller than Lusitania's fine entrance",
+);
+
 const mesh = buildShipMesh(getShip("titanic"));
 const hull = mesh.children.find((c) => c.geometry?.attributes?.position?.count > 500);
 const pos = hull.geometry.attributes.position;
@@ -105,11 +167,6 @@ for (let i = 0; i < pos.count; i++) {
     deckX = x;
   }
 }
-let bowBreadth = 0;
-for (let i = 0; i < pos.count; i++) {
-  if (pos.getX(i) < minX + 0.35) bowBreadth = Math.max(bowBreadth, Math.abs(pos.getZ(i)));
-}
-assert.ok(bowBreadth < 0.15, `stem should be sharp, breadth=${bowBreadth}`);
 assert.ok(deckX < keelX - 0.4, `bow deck should overhang the forefoot (deck ${deckX}, keel ${keelX})`);
 
 const funnels = [];

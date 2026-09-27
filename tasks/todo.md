@@ -65,3 +65,16 @@ Production evidence:
 - Nginx Proxy Manager proxy host #35 forwards HTTP to `sinking-sim-web:80`; Force SSL, HTTP/2, and Block Common Exploits are enabled; WebSockets are disabled.
 - Let's Encrypt certificate #45 is valid from 27 Sep 2026 through 26 Dec 2026.
 - `https://sinking-sim.gstephens.org/healthz` and `/` return HTTP 200. The real browser rendered the production game with WebGL2, showed `v1.0.0 · 27 Sep 2026`, and transitioned RMS Titanic to `Underway` after **Get Underway**.
+
+# Realistic bow entrances (GitHub issue #6)
+
+- [ ] Add failing generated-mesh regressions for bow fullness, closure, and type variation.
+- [ ] Replace the long power-law taper and compounded cutwater pinch.
+- [ ] Keep stem rake/rigging aligned and preserve stern geometry.
+- [ ] Pass unit tests and the production build.
+- [ ] Verify plan and bow-on silhouettes for every current ship in a real browser.
+- [ ] Complete adversarial/code-quality review and open the implementation PR.
+
+## Issue #6 review
+
+Pending implementation and verification.
