@@ -65,3 +65,19 @@ Production evidence:
 - Nginx Proxy Manager proxy host #35 forwards HTTP to `sinking-sim-web:80`; Force SSL, HTTP/2, and Block Common Exploits are enabled; WebSockets are disabled.
 - Let's Encrypt certificate #45 is valid from 27 Sep 2026 through 26 Dec 2026.
 - `https://sinking-sim.gstephens.org/healthz` and `/` return HTTP 200. The real browser rendered the production game with WebGL2, showed `v1.0.0 · 27 Sep 2026`, and transitioned RMS Titanic to `Underway` after **Get Underway**.
+
+# Realistic bow entrances (GitHub issue #6)
+
+- [x] Add failing generated-mesh regressions for bow fullness, closure, and type variation.
+- [x] Replace the long power-law taper and compounded cutwater pinch.
+- [x] Keep stem rake/rigging aligned and preserve stern geometry.
+- [x] Pass unit tests and the production build.
+- [x] Verify plan and bow-on silhouettes for every current ship in a real browser.
+- [x] Complete three bounded adversarial cycles and five-axis code-quality review.
+- [ ] Merge the implementation PR, publish `1.0.1`, deploy to Dell, and verify production.
+
+## Issue #6 review
+
+All seven ships were inspected in WebGL2 from plan and calibrated head-on views. The corrected entrances close at the stem without a long needle taper; the six `bowType` families have distinct fullness, Nomadic is visibly fuller than Lusitania, rake/flare/sheer remain readable, forestays meet the generated stems, teak reaches the bow without a material seam, and stern counters are unchanged. Evidence contact sheets are available at `/tmp/sinking-sim-issue6.5oPktH/plan-contact.png` and `/tmp/sinking-sim-issue6.5oPktH/bow-contact.png`; the representative Titanic views were refreshed after the final topology fix.
+
+Automated checks cover forward deck/waterline fullness, exact stem closure, type ordering, entrance continuity, finite hull data, a valid teak-stem normal, forestay alignment, breakup invariants, and the existing simulation suite. Production release verification is pending.

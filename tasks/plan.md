@@ -56,3 +56,65 @@ Package Sinking Sim as a versioned, multi-architecture nginx image, publish rele
 ## Open Questions
 
 - None. Existing infrastructure supports the inferred hostname, port, registry, and network.
+
+---
+
+# Implementation Plan: Realistic Bow Entrances (GitHub Issue #6)
+
+## Overview
+
+Replace the long, compounded needle-bow taper with a short, full entrance that closes at a real stem. Use the existing `bowType` and `bowFine` style data to produce visibly distinct silhouettes while preserving sheer, flare, rake, stern geometry, rigging alignment, and mesh invariants.
+
+## Architecture Decisions
+
+- Keep the existing loft topology and station count; change only the longitudinal bow envelope and the underwater forefoot modifier.
+- Centralize `bowType` differences in one entrance policy instead of scattering type checks across deck and side generation.
+- Keep the actual `u = 0` station on the centerline so the mesh remains watertight, but remove the broad `u < 0.01` forced collapse.
+- Measure the generated mesh through its existing UV station coordinates so tests exercise production geometry rather than a test-only helper.
+- Release the verified fix as patch version `1.0.1`, publish both supported architectures, and roll Dell forward with the existing validated rollback script.
+
+## Task List
+
+### Phase 1: Regression proof
+
+- [x] Add mesh assertions that reproduce the long bow taper across all ships.
+- [x] Assert visible fullness differences between Nomadic's blunt bow and Lusitania's fine bow.
+
+### Checkpoint: RED
+
+- [x] Focused tests fail on the current needle-bow geometry for the expected reason.
+
+### Phase 2: Geometry correction
+
+- [x] Implement a `bowType`-aware entrance envelope with a rapid final closure.
+- [x] Remove double pinching while retaining a modest underwater forefoot shape.
+- [x] Align the forestay stem reference with the corrected raked stem.
+
+### Checkpoint: GREEN
+
+- [x] Bow regression assertions and the full unit suite pass.
+- [x] Production build succeeds.
+
+### Phase 3: Visual and code review
+
+- [x] Capture plan and bow-on browser views of all seven ships.
+- [x] Confirm sheer, flare, rake, rigging, and stern counter remain intact.
+- [x] Complete adversarial and five-axis code review; resolve required findings.
+
+### Checkpoint: Complete
+
+- [x] Every issue #6 acceptance criterion has test or visual evidence.
+- [ ] Changes are committed, merged, released as `1.0.1`, and verified on Dell.
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+| --- | --- | --- |
+| Fuller stations create a flat/open bow face | High | Keep only the exact stem station at zero breadth and inspect bow-on views. |
+| Type curves differ numerically but not visibly | Medium | Compare the most distinct pair at the same normalized stations and capture matching views. |
+| Rake separates rigging from the deck stem | Medium | Derive the forestay anchor through the same stem transform and inspect it visually. |
+| Bow edits accidentally alter the counter stern | Medium | Limit changes to `u < 0.2` and retain a stern-geometry invariant. |
+
+## Open Questions
+
+- None. Issue #6 defines the intended silhouette and names the comparison ships.
