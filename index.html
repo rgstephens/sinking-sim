@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Sinking Sim</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="c"></canvas>
+
+      <div id="hud">
+        <header class="bar">
+          <h1>Sinking Sim</h1>
+          <p class="tag">Get underway. Steer clear of whatever the sea throws at you.</p>
+        </header>
+
+        <section class="panel" id="setup-panel">
+          <label>
+            Ship
+            <select id="ship-select"></select>
+          </label>
+          <label>
+            Atmosphere
+            <select id="atmo-select"></select>
+          </label>
+          <button id="start-btn" type="button">Get Underway</button>
+        </section>
+
+        <section class="panel hidden" id="sim-panel">
+          <div class="status">
+            <span id="status-ship">—</span>
+            <span class="sep">·</span>
+            <span id="status-disaster">Underway</span>
+          </div>
+          <label class="speed-label">
+            Sim speed
+            <input id="speed-slider" type="range" min="0" max="4" step="0.25" value="1" />
+            <span id="speed-readout">1×</span>
+          </label>
+          <div class="btn-row">
+            <button id="reset-btn" type="button">Reset</button>
+            <button id="cam-btn" type="button">Chase cam</button>
+          </div>
+        </section>
+
+        <div id="alert" class="alert hidden"></div>
+
+        <div id="dash" class="dash hidden">
+          <div class="bubble">
+            <span class="k">Speed</span>
+            <span class="v" id="stat-speed">0 kt</span>
+          </div>
+          <div class="bubble">
+            <span class="k">Heading</span>
+            <span class="v" id="stat-head">000°</span>
+          </div>
+          <div class="bubble">
+            <span class="k">Flood</span>
+            <span class="v" id="stat-flood">0%</span>
+          </div>
+          <div class="bubble">
+            <span class="k">List</span>
+            <span class="v" id="stat-list">0°</span>
+          </div>
+          <div class="bubble">
+            <span class="k">Status</span>
+            <span class="v" id="stat-state">Underway</span>
+          </div>
+        </div>
+
+        <aside id="keys" class="keys">
+          <div><span class="key">W</span> <span class="key">S</span> throttle</div>
+          <div><span class="key">A</span> <span class="key">D</span> helm</div>
+          <div><span class="key">SPACE</span> pause</div>
+          <div><span class="key">1</span> <span class="key">2</span> <span class="key">4</span> sim speed</div>
+          <div><span class="key">C</span> camera</div>
+        </aside>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

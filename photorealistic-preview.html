@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sinking Sim — Photorealistic Graphics Preview</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0e1320;
+    --panel: #161c2c;
+    --ink: #e7ecf3;
+    --muted: #9aa5b8;
+    --accent: #6ea8fe;
+    --rule: #2a3346;
+    --code-bg: #111726;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  main { max-width: 1240px; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+  h1 { font-size: 2.2rem; margin: 0 0 0.4rem; letter-spacing: -0.02em; }
+  h2 { font-size: 1.55rem; margin: 3rem 0 1rem; padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--rule); letter-spacing: -0.01em; }
+  h3 { font-size: 1.15rem; margin: 2rem 0 0.6rem; color: var(--accent); }
+  p { margin: 0.8rem 0; color: var(--ink); }
+  strong { color: #fff; }
+  em { color: #cfd6e3; }
+  code { background: var(--code-bg); padding: 0.12em 0.4em; border-radius: 4px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em;
+    border: 1px solid var(--rule); }
+  hr { border: 0; border-top: 1px solid var(--rule); margin: 2.5rem 0; }
+  blockquote { border-left: 3px solid var(--accent); margin: 1.2rem 0;
+    padding: 0.4rem 1rem; background: var(--panel); border-radius: 0 6px 6px 0;
+    color: var(--muted); font-style: italic; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin: 0.3rem 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1.2rem 0;
+    background: var(--panel); border-radius: 8px; overflow: hidden;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25); }
+  th, td { padding: 0.65rem 0.9rem; text-align: left;
+    border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { background: #1d2438; font-weight: 600; color: #fff; font-size: 0.92em;
+    text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:last-child td { border-bottom: none; }
+  svg { display: block; margin: 1.4rem auto; max-width: 100%; height: auto; }
+  a { color: var(--accent); }
+  header.page { padding: 1.5rem 0 0; color: var(--muted); font-size: 0.9rem; }
+  footer.page { margin-top: 4rem; padding-top: 1.5rem; border-top: 1px solid var(--rule);
+    color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+<h1>Sinking Sim — Photorealistic Graphics Preview</h1>
+
+<p>A visual proposal for what a "much more photo-realistic" version of Sinking Sim would look like. The current build favors legibility and physics focus (flat-ish water, simple solid-color hulls, blocky geometry). This document shows the <strong>target look</strong> — what we're aiming at — using SVG concept art so you can see the difference before any code is written.</p>
+
+<p>The goal isn't Hollywood VFX; it's "feels like a real ship on a real ocean at a real time of day" using techniques Three.js handles well: PBR materials, reflective water, HDR-ish sky, normal-mapped surfaces, baked ship paint, instanced foam and spray, volumetric haze.</p>
+
+<hr>
+
+<h2>1. Hero shot — RMS Titanic at golden hour</h2>
+
+<p>The single image that defines the new aesthetic. Calm Atlantic evening, sun low on the horizon, ship lit from the side with long shadows, ocean reflecting both sky and hull.</p>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:1200px;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+  <defs>
+    <linearGradient id="hSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0c1430"/>
+      <stop offset="35%" stop-color="#2a3858"/>
+      <stop offset="60%" stop-color="#6e4a48"/>
+      <stop offset="78%" stop-color="#d6864a"/>
+      <stop offset="100%" stop-color="#f0c890"/>
+    </linearGradient>
+    <radialGradient id="hSun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#fff8d8" stop-opacity="1"/>
+      <stop offset="20%" stop-color="#ffe4a0" stop-opacity="0.9"/>
+      <stop offset="55%" stop-color="#ff9050" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ff7050" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="hOcean" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a3a58"/>
+      <stop offset="25%" stop-color="#15243a"/>
+      <stop offset="60%" stop-color="#08101e"/>
+      <stop offset="100%" stop-color="#020610"/>
+    </linearGradient>
+    <linearGradient id="hRefl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff0c8" stop-opacity="0.9"/>
+      <stop offset="40%" stop-color="#ffb060" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#ff7050" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="hHull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1f242e"/>
+      <stop offset="55%" stop-color="#0a0e16"/>
+      <stop offset="80%" stop-color="#1a3050"/>
+      <stop offset="100%" stop-color="#3a2018"/>
+    </linearGradient>
+    <linearGradient id="hSuper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffaef"/>
+      <stop offset="100%" stop-color="#c8c0b0"/>
+    </linearGradient>
+    <linearGradient id="hHullSide" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0a0e16"/>
+      <stop offset="50%" stop-color="#1f242e"/>
+      <stop offset="100%" stop-color="#0a0e16"/>
+    </linearGradient>
+    <filter id="hBlur"><feGaussianBlur stdDeviation="2"/></filter>
+    <filter id="hBlurLg"><feGaussianBlur stdDeviation="6"/></filter>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="1200" height="420" fill="url(#hSky)"/>
+
+  <!-- Distant cloud band -->
+  <ellipse cx="600" cy="380" rx="900" ry="22" fill="#5a3a48" opacity="0.5" filter="url(#hBlurLg)"/>
+  <ellipse cx="300" cy="370" rx="320" ry="10" fill="#3a2a48" opacity="0.4" filter="url(#hBlur)"/>
+  <ellipse cx="900" cy="372" rx="280" ry="8" fill="#3a2a48" opacity="0.4" filter="url(#hBlur)"/>
+
+  <!-- Sun + glow -->
+  <circle cx="600" cy="395" r="180" fill="url(#hSun)"/>
+  <circle cx="600" cy="395" r="42" fill="#fff8e8"/>
+  <circle cx="600" cy="395" r="28" fill="#fff" opacity="0.95"/>
+
+  <!-- Ocean -->
+  <rect y="420" width="1200" height="180" fill="url(#hOcean)"/>
+
+  <!-- Sun path on water (broken into horizontal streaks) -->
+  <path d="M 540 420 L 660 420 L 760 600 L 440 600 Z" fill="url(#hRefl)" opacity="0.55"/>
+  <g opacity="0.9">
+    <ellipse cx="600" cy="435" rx="160" ry="2" fill="#fff0c8"/>
+    <ellipse cx="600" cy="448" rx="180" ry="1.5" fill="#ffd680" opacity="0.7"/>
+    <ellipse cx="600" cy="462" rx="195" ry="1.5" fill="#ffb060" opacity="0.6"/>
+    <ellipse cx="600" cy="478" rx="210" ry="1.5" fill="#ff9050" opacity="0.5"/>
+    <ellipse cx="600" cy="496" rx="225" ry="1.5" fill="#ff8048" opacity="0.4"/>
+    <ellipse cx="600" cy="518" rx="240" ry="1.5" fill="#ff7050" opacity="0.3"/>
+    <ellipse cx="600" cy="544" rx="255" ry="1.5" fill="#e06040" opacity="0.25"/>
+  </g>
+
+  <!-- Wave highlights -->
+  <g stroke="#9ab0d0" stroke-width="0.6" opacity="0.4">
+    <path d="M 0 442 Q 100 440 200 442 T 400 442 T 600 442 T 800 442 T 1000 442 T 1200 442" fill="none"/>
+    <path d="M 0 460 Q 120 458 240 460 T 480 460 T 720 460 T 960 460 T 1200 460" fill="none"/>
+    <path d="M 0 485 Q 150 483 300 485 T 600 485 T 900 485 T 1200 485" fill="none"/>
+    <path d="M 0 520 Q 200 518 400 520 T 800 520 T 1200 520" fill="none"/>
+  </g>
+
+  <!-- Ship hull (Titanic silhouette, center) -->
+  <g transform="translate(450,380)">
+    <!-- Hull body -->
+    <path d="M 0 30 L 300 28 Q 330 28 340 32 L 340 52 Q 320 56 280 58 L 30 58 Q 5 58 0 50 Z"
+          fill="url(#hHullSide)"/>
+    <!-- Hull top edge highlight -->
+    <path d="M 0 30 L 300 28 Q 330 28 340 32" stroke="#3a4258" stroke-width="1" fill="none"/>
+    <!-- Antifouling red below waterline -->
+    <path d="M 0 46 L 340 46 Q 322 56 280 58 L 30 58 Q 5 58 0 50 Z" fill="#3a1a14" opacity="0.85"/>
+    <!-- Bow point -->
+    <path d="M 0 30 Q -6 38 -2 50 L 0 50 Z" fill="#0a0e16"/>
+
+    <!-- Superstructure base -->
+    <rect x="40" y="14" width="240" height="16" fill="url(#hSuper)"/>
+    <!-- Deck levels -->
+    <rect x="50" y="6" width="220" height="8" fill="url(#hSuper)"/>
+    <rect x="70" y="-2" width="180" height="8" fill="url(#hSuper)"/>
+    <rect x="90" y="-10" width="140" height="8" fill="url(#hSuper)"/>
+    <rect x="110" y="-18" width="100" height="8" fill="url(#hSuper)"/>
+    <!-- Bridge -->
+    <rect x="140" y="-26" width="40" height="8" fill="url(#hSuper)"/>
+
+    <!-- Four funnels -->
+    <g fill="#c45c26">
+      <rect x="60" y="-50" width="14" height="32" rx="2"/>
+      <rect x="100" y="-50" width="14" height="32" rx="2"/>
+      <rect x="186" y="-50" width="14" height="32" rx="2"/>
+      <rect x="226" y="-50" width="14" height="32" rx="2"/>
+    </g>
+    <!-- Funnel black caps -->
+    <g fill="#1a1a1a">
+      <rect x="60" y="-50" width="14" height="6"/>
+      <rect x="100" y="-50" width="14" height="6"/>
+      <rect x="186" y="-50" width="14" height="6"/>
+      <rect x="226" y="-50" width="14" height="6"/>
+    </g>
+    <!-- Funnel highlights -->
+    <g fill="#e87a3a" opacity="0.5">
+      <rect x="62" y="-44" width="2" height="22"/>
+      <rect x="102" y="-44" width="2" height="22"/>
+      <rect x="188" y="-44" width="2" height="22"/>
+      <rect x="228" y="-44" width="2" height="22"/>
+    </g>
+
+    <!-- Masts -->
+    <line x1="40" y1="-18" x2="40" y2="-70" stroke="#1a1a1a" stroke-width="1.2"/>
+    <line x1="270" y1="-18" x2="270" y2="-70" stroke="#1a1a1a" stroke-width="1.2"/>
+
+    <!-- Lifeboats (small ovals along deck) -->
+    <g fill="#fff8e8" stroke="#1a1a1a" stroke-width="0.4">
+      <ellipse cx="70" cy="22" rx="4" ry="1.2"/>
+      <ellipse cx="90" cy="22" rx="4" ry="1.2"/>
+      <ellipse cx="110" cy="22" rx="4" ry="1.2"/>
+      <ellipse cx="130" cy="22" rx="4" ry="1.2"/>
+      <ellipse cx="150" cy="22" rx="4" ry="1.2"/>
+      <ellipse cx="170" cy="22" rx="4" ry="1.2"/>
+      <ellipse cx="200" cy="22" rx="4" ry="1.2"/>
+      <ellipse cx="220" cy="22" rx="4" ry="1.2"/>
+      <ellipse cx="240" cy="22" rx="4" ry="1.2"/>
+      <ellipse cx="260" cy="22" rx="4" ry="1.2"/>
+    </g>
+
+    <!-- Porthole lights -->
+    <g fill="#ffd680" opacity="0.9">
+      <circle cx="60" cy="40" r="0.9"/>
+      <circle cx="90" cy="40" r="0.9"/>
+      <circle cx="120" cy="40" r="0.9"/>
+      <circle cx="150" cy="40" r="0.9"/>
+      <circle cx="180" cy="40" r="0.9"/>
+      <circle cx="210" cy="40" r="0.9"/>
+      <circle cx="240" cy="40" r="0.9"/>
+      <circle cx="270" cy="40" r="0.9"/>
+      <circle cx="300" cy="40" r="0.9"/>
+      <circle cx="320" cy="40" r="0.9"/>
+    </g>
+
+    <!-- Ship reflection in water -->
+    <g transform="translate(0,116)" opacity="0.35">
+      <path d="M 0 0 L 340 4 L 340 60 L 0 56 Z" fill="#1a2438"/>
+      <rect x="40" y="14" width="240" height="3" fill="#d8d0c0" opacity="0.4"/>
+      <g fill="#c45c26" opacity="0.4">
+        <rect x="60" y="0" width="14" height="14"/>
+        <rect x="100" y="0" width="14" height="14"/>
+        <rect x="186" y="0" width="14" height="14"/>
+        <rect x="226" y="0" width="14" height="14"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Foam at bow -->
+  <g fill="#fff" opacity="0.7">
+    <ellipse cx="446" cy="438" rx="14" ry="3"/>
+    <ellipse cx="450" cy="442" rx="22" ry="2" opacity="0.5"/>
+    <ellipse cx="448" cy="446" rx="30" ry="1.5" opacity="0.3"/>
+  </g>
+
+  <!-- Atmospheric haze on horizon -->
+  <rect y="408" width="1200" height="20" fill="#d8a878" opacity="0.25"/>
+</svg>
+
+<p><em>Key elements:</em> sky gradient with sun disc + glow, reflective ocean with specular streaks and a broken sun-path, ship silhouette with antifouling red below waterline, four buff funnels, lifeboats and lit portholes, foam at the bow, subtle reflection.</p>
+
+<hr>
+
+<h2>2. Ocean — current vs. photorealistic</h2>
+
+<p>The biggest visible jump. Current water is a single shaded plane with sine-wave displacement and a flat color. Target water is a PBR surface with normal mapping, sky reflection, specular highlights, foam at crests and around the hull, and a deeper dark zone below.</p>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:1200px;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+  <defs>
+    <linearGradient id="cwSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#5a8cb8"/>
+      <stop offset="100%" stop-color="#a8c8e0"/>
+    </linearGradient>
+    <linearGradient id="cwFlat" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#17608a"/>
+      <stop offset="100%" stop-color="#0c4060"/>
+    </linearGradient>
+    <linearGradient id="prSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a1830"/>
+      <stop offset="60%" stop-color="#3a5078"/>
+      <stop offset="100%" stop-color="#8a98b0"/>
+    </linearGradient>
+    <linearGradient id="prOcean" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a2840"/>
+      <stop offset="30%" stop-color="#0a1428"/>
+      <stop offset="100%" stop-color="#020610"/>
+    </linearGradient>
+    <filter id="blurSm"><feGaussianBlur stdDeviation="1"/></filter>
+  </defs>
+
+  <!-- LEFT: current -->
+  <g>
+    <rect width="600" height="200" fill="url(#cwSky)"/>
+    <rect y="200" width="600" height="300" fill="url(#cwFlat)"/>
+    <!-- Flat waves -->
+    <g stroke="#2a78a8" stroke-width="0.8" fill="none" opacity="0.6">
+      <path d="M 0 220 Q 75 218 150 220 T 300 220 T 450 220 T 600 220"/>
+      <path d="M 0 240 Q 60 238 120 240 T 240 240 T 360 240 T 480 240 T 600 240"/>
+      <path d="M 0 265 Q 80 263 160 265 T 320 265 T 480 265 T 600 265"/>
+      <path d="M 0 295 Q 100 293 200 295 T 400 295 T 600 295"/>
+      <path d="M 0 335 Q 70 333 140 335 T 280 335 T 420 335 T 600 335"/>
+      <path d="M 0 385 Q 90 383 180 385 T 360 385 T 540 385 T 600 385"/>
+    </g>
+    <!-- Tiny toy ship -->
+    <g transform="translate(220,210) scale(0.35)">
+      <rect x="0" y="20" width="160" height="14" fill="#12161f"/>
+      <rect x="20" y="6" width="120" height="14" fill="#f0ebe3"/>
+      <rect x="40" y="-4" width="80" height="10" fill="#f0ebe3"/>
+      <g fill="#c45c26">
+        <rect x="30" y="-26" width="8" height="22"/>
+        <rect x="60" y="-26" width="8" height="22"/>
+        <rect x="100" y="-26" width="8" height="22"/>
+        <rect x="130" y="-26" width="8" height="22"/>
+      </g>
+    </g>
+    <text x="300" y="475" fill="#222" font-family="ui-sans-serif,system-ui" font-size="22" font-weight="700" text-anchor="middle">CURRENT</text>
+    <text x="300" y="495" fill="#444" font-family="ui-sans-serif,system-ui" font-size="12" text-anchor="middle">flat shaded plane, uniform color, no reflection</text>
+  </g>
+
+  <!-- divider -->
+  <line x1="600" y1="40" x2="600" y2="460" stroke="#fff" stroke-width="2" stroke-dasharray="6 6" opacity="0.6"/>
+
+  <!-- RIGHT: photorealistic -->
+  <g transform="translate(600,0)">
+    <rect width="600" height="200" fill="url(#prSky)"/>
+    <!-- soft horizon -->
+    <rect y="195" width="600" height="14" fill="#5a7090" opacity="0.4"/>
+    <rect y="200" width="600" height="300" fill="url(#prOcean)"/>
+
+    <!-- Specular streaks from low sun -->
+    <g opacity="0.85">
+      <ellipse cx="300" cy="218" rx="180" ry="1.6" fill="#fff0c8"/>
+      <ellipse cx="300" cy="232" rx="200" ry="1.4" fill="#ffe0a0" opacity="0.8"/>
+      <ellipse cx="300" cy="248" rx="220" ry="1.4" fill="#ffc888" opacity="0.7"/>
+      <ellipse cx="300" cy="268" rx="240" ry="1.4" fill="#ffb070" opacity="0.6"/>
+      <ellipse cx="300" cy="292" rx="260" ry="1.4" fill="#ff9860" opacity="0.5"/>
+      <ellipse cx="300" cy="322" rx="280" ry="1.4" fill="#e87850" opacity="0.4"/>
+      <ellipse cx="300" cy="358" rx="300" ry="1.4" fill="#c06040" opacity="0.3"/>
+      <ellipse cx="300" cy="402" rx="320" ry="1.4" fill="#8a4830" opacity="0.22"/>
+    </g>
+
+    <!-- Wave crests with foam highlights -->
+    <g opacity="0.55" fill="#d8e0f0">
+      <path d="M 20 218 q 30 -3 60 0 q 30 3 60 0 q 30 -3 60 0 q 30 3 60 0 q 30 -3 60 0 q 30 3 60 0 q 30 -3 60 0 q 30 3 60 0 q 30 -3 60 0 q 30 3 60 0" fill="none" stroke="#a0b0d0" stroke-width="0.5"/>
+      <path d="M 0 248 q 35 -4 70 0 q 35 4 70 0 q 35 -4 70 0 q 35 4 70 0 q 35 -4 70 0 q 35 4 70 0 q 35 -4 70 0 q 35 4 70 0 q 35 -4 70 0 q 35 4 70 0" fill="none" stroke="#90a0c0" stroke-width="0.5"/>
+      <path d="M 20 288 q 40 -5 80 0 q 40 5 80 0 q 40 -5 80 0 q 40 5 80 0 q 40 -5 80 0 q 40 5 80 0 q 40 -5 80 0 q 40 5 80 0 q 40 -5 80 0 q 40 5 80 0" fill="none" stroke="#7888a8" stroke-width="0.5"/>
+    </g>
+
+    <!-- Foam dots scattered -->
+    <g fill="#fff" opacity="0.45">
+      <circle cx="80" cy="232" r="0.7"/><circle cx="180" cy="240" r="0.6"/><circle cx="260" cy="234" r="0.8"/>
+      <circle cx="360" cy="244" r="0.6"/><circle cx="450" cy="238" r="0.7"/><circle cx="520" cy="248" r="0.6"/>
+      <circle cx="60" cy="278" r="0.7"/><circle cx="160" cy="272" r="0.6"/><circle cx="280" cy="280" r="0.8"/>
+      <circle cx="380" cy="274" r="0.6"/><circle cx="460" cy="284" r="0.7"/><circle cx="540" cy="278" r="0.6"/>
+      <circle cx="100" cy="328" r="0.7"/><circle cx="220" cy="320" r="0.6"/><circle cx="340" cy="332" r="0.8"/>
+      <circle cx="440" cy="326" r="0.6"/><circle cx="540" cy="338" r="0.7"/>
+      <circle cx="40" cy="380" r="0.6"/><circle cx="180" cy="388" r="0.7"/><circle cx="320" cy="382" r="0.6"/>
+      <circle cx="450" cy="394" r="0.7"/><circle cx="560" cy="386" r="0.6"/>
+    </g>
+
+    <!-- Dark depth zones -->
+    <ellipse cx="300" cy="460" rx="380" ry="50" fill="#000" opacity="0.45" filter="url(#blurSm)"/>
+
+    <!-- Ship with proper reflection -->
+    <g transform="translate(220,210) scale(0.35)">
+      <!-- Reflection first (mirrored, faded) -->
+      <g transform="scale(1,-1) translate(0,-68)" opacity="0.3">
+        <rect x="0" y="20" width="160" height="14" fill="#1a2438"/>
+        <rect x="20" y="6" width="120" height="14" fill="#d8d0c0"/>
+        <g fill="#c45c26" opacity="0.7">
+          <rect x="30" y="-26" width="8" height="22"/>
+          <rect x="60" y="-26" width="8" height="22"/>
+          <rect x="100" y="-26" width="8" height="22"/>
+          <rect x="130" y="-26" width="8" height="22"/>
+        </g>
+      </g>
+      <!-- Ship -->
+      <rect x="0" y="20" width="160" height="14" fill="#0a0e16"/>
+      <rect x="0" y="20" width="160" height="2" fill="#3a4258"/>
+      <rect x="0" y="30" width="160" height="6" fill="#3a1a14" opacity="0.7"/>
+      <rect x="20" y="6" width="120" height="14" fill="#fffaef"/>
+      <rect x="20" y="6" width="120" height="2" fill="#fff"/>
+      <rect x="40" y="-4" width="80" height="10" fill="#fffaef"/>
+      <rect x="60" y="-12" width="40" height="8" fill="#fffaef"/>
+      <g fill="#c45c26">
+        <rect x="30" y="-26" width="8" height="22"/>
+        <rect x="60" y="-26" width="8" height="22"/>
+        <rect x="100" y="-26" width="8" height="22"/>
+        <rect x="130" y="-26" width="8" height="22"/>
+      </g>
+      <g fill="#1a1a1a">
+        <rect x="30" y="-26" width="8" height="5"/>
+        <rect x="60" y="-26" width="8" height="5"/>
+        <rect x="100" y="-26" width="8" height="5"/>
+        <rect x="130" y="-26" width="8" height="5"/>
+      </g>
+    </g>
+
+    <!-- Foam at waterline -->
+    <g fill="#fff" opacity="0.85">
+      <ellipse cx="245" cy="227" rx="30" ry="1.5"/>
+      <ellipse cx="280" cy="229" rx="20" ry="1" opacity="0.6"/>
+    </g>
+
+    <text x="300" y="475" fill="#222" font-family="ui-sans-serif,system-ui" font-size="22" font-weight="700" text-anchor="middle">PHOTOREALISTIC</text>
+    <text x="300" y="495" fill="#444" font-family="ui-sans-serif,system-ui" font-size="12" text-anchor="middle">PBR water, sky reflection, foam, sun path, depth</text>
+  </g>
+</svg>
+
+<p><strong>What changes under the hood:</strong></p>
+
+<table>
+<thead><tr><th>Aspect</th><th>Current</th><th>Target</th></tr></thead>
+<tbody>
+<tr><td>Material</td><td><code>MeshStandardMaterial</code>, single color, roughness 0.18</td><td>Custom water shader or <code>MeshPhysicalMaterial</code> with <code>transmission</code>, <code>roughness</code> driven by normal map</td></tr>
+<tr><td>Geometry</td><td>192×192 plane with sine-wave vertex anim</td><td>Same density but with <strong>FFT-style wave叠加</strong> (Gerstner waves, 3–4 sums)</td></tr>
+<tr><td>Reflection</td><td>None</td><td>Real-time sky env map (<code>PMREMGenerator</code> from a procedural sky)</td></tr>
+<tr><td>Foam</td><td>None</td><td>Crest-band shader + screen-space foam texture near the hull</td></tr>
+<tr><td>Specular</td><td>Lambert-ish</td><td>GGX specular from sun direction, sun-path streaks visible</td></tr>
+<tr><td>Color depth</td><td>Single mid-blue</td><td>Dark teal at depth → greenish mid → sky-tinted near horizon</td></tr>
+</tbody></table>
+
+<hr>
+
+<h2>3. Hull detail — close-up</h2>
+
+<p>Right now the ship is a solid-color hull with a thin red strip below the waterline. Photorealistic hulls have: visible plating seams, rivet rows, portholes, anchors, draft markings, weathering streaks, and the subtle gloss of wet paint near the waterline.</p>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:1200px;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+  <defs>
+    <linearGradient id="hdHull" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a1f2a"/>
+      <stop offset="50%" stop-color="#0a0e16"/>
+      <stop offset="100%" stop-color="#1c0a08"/>
+    </linearGradient>
+    <linearGradient id="hdWet" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#fff" stop-opacity="0.18"/>
+    </linearGradient>
+    <linearGradient id="hdSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3a4a6a"/>
+      <stop offset="100%" stop-color="#6a82a0"/>
+    </linearGradient>
+    <pattern id="hdRivets" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+      <circle cx="7" cy="7" r="1" fill="#2a2f3a"/>
+      <circle cx="7" cy="7" r="0.5" fill="#0a0e16"/>
+    </pattern>
+    <pattern id="hdSeams" x="0" y="0" width="60" height="40" patternUnits="userSpaceOnUse">
+      <rect width="60" height="40" fill="transparent"/>
+      <line x1="0" y1="20" x2="60" y2="20" stroke="#000" stroke-width="0.6" opacity="0.5"/>
+      <line x1="30" y1="0" x2="30" y2="40" stroke="#000" stroke-width="0.4" opacity="0.35"/>
+    </pattern>
+  </defs>
+
+  <!-- Sky strip -->
+  <rect width="1200" height="60" fill="url(#hdSky)"/>
+
+  <!-- Superstructure white -->
+  <rect y="60" width="1200" height="120" fill="#eee5d2"/>
+
+  <!-- Hull -->
+  <rect y="180" width="1200" height="220" fill="url(#hdHull)"/>
+  <!-- Plating seams -->
+  <rect y="180" width="1200" height="220" fill="url(#hdSeams)"/>
+  <!-- Rivet rows along seams -->
+  <g>
+    <rect y="198" width="1200" height="14" fill="url(#hdRivets)"/>
+    <rect y="258" width="1200" height="14" fill="url(#hdRivets)"/>
+    <rect y="318" width="1200" height="14" fill="url(#hdRivets)"/>
+    <rect y="378" width="1200" height="14" fill="url(#hdRivets)"/>
+  </g>
+
+  <!-- Boot-topping (paint stripe) -->
+  <rect y="310" width="1200" height="8" fill="#3a1a14"/>
+  <rect y="310" width="1200" height="2" fill="#1a0808"/>
+
+  <!-- Antifouling red below -->
+  <rect y="318" width="1200" height="82" fill="#3a1a14"/>
+  <rect y="318" width="1200" height="82" fill="url(#hdSeams)" opacity="0.7"/>
+
+  <!-- Wet sheen near waterline -->
+  <rect y="280" width="1200" height="140" fill="url(#hdWet)"/>
+
+  <!-- Portholes -->
+  <g>
+    <!-- Row 1 -->
+    <g fill="#1a2030" stroke="#0a0e16" stroke-width="1">
+      <circle cx="80" cy="220" r="9"/><circle cx="140" cy="220" r="9"/>
+      <circle cx="200" cy="220" r="9"/><circle cx="260" cy="220" r="9"/>
+      <circle cx="320" cy="220" r="9"/><circle cx="380" cy="220" r="9"/>
+      <circle cx="440" cy="220" r="9"/><circle cx="500" cy="220" r="9"/>
+      <circle cx="560" cy="220" r="9"/><circle cx="620" cy="220" r="9"/>
+      <circle cx="680" cy="220" r="9"/><circle cx="740" cy="220" r="9"/>
+      <circle cx="800" cy="220" r="9"/><circle cx="860" cy="220" r="9"/>
+      <circle cx="920" cy="220" r="9"/><circle cx="980" cy="220" r="9"/>
+      <circle cx="1040" cy="220" r="9"/><circle cx="1100" cy="220" r="9"/>
+    </g>
+    <!-- Row 2 -->
+    <g fill="#1a2030" stroke="#0a0e16" stroke-width="1">
+      <circle cx="80" cy="260" r="8"/><circle cx="140" cy="260" r="8"/>
+      <circle cx="200" cy="260" r="8"/><circle cx="260" cy="260" r="8"/>
+      <circle cx="320" cy="260" r="8"/><circle cx="380" cy="260" r="8"/>
+      <circle cx="440" cy="260" r="8"/><circle cx="500" cy="260" r="8"/>
+      <circle cx="560" cy="260" r="8"/><circle cx="620" cy="260" r="8"/>
+      <circle cx="680" cy="260" r="8"/><circle cx="740" cy="260" r="8"/>
+      <circle cx="800" cy="260" r="8"/><circle cx="860" cy="260" r="8"/>
+      <circle cx="920" cy="260" r="8"/><circle cx="980" cy="260" r="8"/>
+      <circle cx="1040" cy="260" r="8"/><circle cx="1100" cy="260" r="8"/>
+    </g>
+    <!-- Porthole glass highlights -->
+    <g fill="#5a7090" opacity="0.7">
+      <circle cx="78" cy="218" r="2"/><circle cx="138" cy="218" r="2"/>
+      <circle cx="198" cy="218" r="2"/><circle cx="258" cy="218" r="2"/>
+      <circle cx="318" cy="218" r="2"/><circle cx="378" cy="218" r="2"/>
+      <circle cx="438" cy="218" r="2"/><circle cx="498" cy="218" r="2"/>
+      <circle cx="558" cy="218" r="2"/><circle cx="618" cy="218" r="2"/>
+      <circle cx="678" cy="218" r="2"/><circle cx="738" cy="218" r="2"/>
+      <circle cx="798" cy="218" r="2"/><circle cx="858" cy="218" r="2"/>
+      <circle cx="918" cy="218" r="2"/><circle cx="978" cy="218" r="2"/>
+      <circle cx="1038" cy="218" r="2"/><circle cx="1098" cy="218" r="2"/>
+    </g>
+  </g>
+
+  <!-- Anchor hawsepipe -->
+  <g transform="translate(170,210)">
+    <ellipse cx="0" cy="0" rx="14" ry="6" fill="#000"/>
+    <ellipse cx="0" cy="-1" rx="11" ry="4" fill="#0a0e16"/>
+    <!-- Chain emerging -->
+    <g fill="none" stroke="#1a1a1a" stroke-width="1.4">
+      <path d="M -3 4 Q -8 18 -4 32"/>
+      <path d="M 3 4 Q 8 18 4 32"/>
+    </g>
+  </g>
+
+  <!-- Draft markings -->
+  <g fill="#fffaef" font-family="ui-monospace,monospace" font-size="10" opacity="0.85">
+    <text x="1080" y="338">24</text>
+    <text x="1080" y="358">22</text>
+    <text x="1080" y="378">20</text>
+    <text x="1080" y="398">18</text>
+  </g>
+  <g stroke="#fffaef" stroke-width="0.6" opacity="0.6">
+    <line x1="1075" y1="335" x2="1095" y2="335"/>
+    <line x1="1078" y1="355" x2="1092" y2="355"/>
+    <line x1="1078" y1="375" x2="1092" y2="375"/>
+    <line x1="1078" y1="395" x2="1092" y2="395"/>
+  </g>
+
+  <!-- Weathering streaks -->
+  <g stroke="#3a2a20" stroke-width="0.8" opacity="0.5">
+    <line x1="80" y1="180" x2="84" y2="280"/>
+    <line x1="180" y1="180" x2="178" y2="270"/>
+    <line x1="320" y1="180" x2="324" y2="285"/>
+    <line x1="500" y1="180" x2="498" y2="275"/>
+    <line x1="680" y1="180" x2="684" y2="282"/>
+    <line x1="860" y1="180" x2="858" y2="272"/>
+    <line x1="1020" y1="180" x2="1024" y2="278"/>
+  </g>
+
+  <!-- Title overlay -->
+  <text x="40" y="430" fill="#fffaef" font-family="ui-sans-serif,system-ui" font-size="20" font-weight="700" opacity="0.95">HULL DETAIL</text>
+  <text x="40" y="452" fill="#cfd5e0" font-family="ui-sans-serif,system-ui" font-size="12" opacity="0.85">plating seams · rivet rows · portholes · draft marks · weathering</text>
+  <text x="40" y="472" fill="#cfd5e0" font-family="ui-sans-serif,system-ui" font-size="12" opacity="0.85">anchor hawsepipe · boot-topping · wet sheen near waterline</text>
+</svg>
+
+<p><em>How this maps to Three.js:</em> normal map for plating seams (procedural or a small baked texture), instanced rivet geometry or normal-map detail, real porthole geometry (cylinder + inset glass with emissive map for lit interiors), painted draft numerals, vertex-colored weathering streaks, screen- space wetness near the dynamic waterline.</p>
+
+<hr>
+
+<h2>4. The fleet — each ship distinct</h2>
+
+<p>Right now every ship is the same builder with different parameters, so they read as "Titanic, but shorter / longer / different funnel count." The photorealistic pass gives each one its own <strong>recognizable silhouette</strong> and</p>
+<p><strong>distinct deck arrangement</strong> so picking from the list actually feels different.</p>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:1200px;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+  <defs>
+    <linearGradient id="fBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a8c0d8"/>
+      <stop offset="100%" stop-color="#d8e4ec"/>
+    </linearGradient>
+    <linearGradient id="fSea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#2a5078"/>
+      <stop offset="100%" stop-color="#0a1830"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="700" fill="url(#fBg)"/>
+  <rect y="430" width="1200" height="270" fill="url(#fSea)"/>
+
+  <!-- Ship 1: Titanic (long, 4 funnels, classical profile) -->
+  <g transform="translate(60,300)">
+    <path d="M 0 50 L 220 48 L 230 56 L 230 70 L 10 70 L 0 64 Z" fill="#0a0e16"/>
+    <rect x="20" y="36" width="200" height="14" fill="#eee5d2"/>
+    <rect x="40" y="24" width="170" height="12" fill="#eee5d2"/>
+    <rect x="60" y="14" width="130" height="10" fill="#eee5d2"/>
+    <rect x="80" y="6" width="90" height="8" fill="#eee5d2"/>
+    <g fill="#c45c26">
+      <rect x="50" y="-22" width="10" height="36"/>
+      <rect x="80" y="-22" width="10" height="36"/>
+      <rect x="140" y="-22" width="10" height="36"/>
+      <rect x="170" y="-22" width="10" height="36"/>
+    </g>
+    <line x1="40" y1="6" x2="40" y2="-40" stroke="#1a1a1a" stroke-width="0.8"/>
+    <line x1="200" y1="14" x2="200" y2="-40" stroke="#1a1a1a" stroke-width="0.8"/>
+    <text x="115" y="105" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="14" font-weight="600" text-anchor="middle">RMS Titanic</text>
+    <text x="115" y="122" fill="#c0d0e0" font-family="ui-sans-serif,system-ui" font-size="10" text-anchor="middle">1912 · 4 funnels</text>
+  </g>
+
+  <!-- Ship 2: Britannic (similar but slightly larger, hospital markings) -->
+  <g transform="translate(310,295)">
+    <path d="M 0 55 L 225 53 L 236 62 L 236 76 L 10 76 L 0 70 Z" fill="#141a26"/>
+    <rect x="22" y="40" width="206" height="14" fill="#f4efe8"/>
+    <!-- Green stripes (hospital livery) -->
+    <rect x="22" y="46" width="206" height="3" fill="#2f6b3a"/>
+    <rect x="40" y="28" width="172" height="12" fill="#f4efe8"/>
+    <rect x="40" y="33" width="172" height="2" fill="#2f6b3a"/>
+    <rect x="60" y="18" width="132" height="10" fill="#f4efe8"/>
+    <rect x="80" y="9" width="92" height="9" fill="#f4efe8"/>
+    <!-- Red cross -->
+    <g fill="#b81818">
+      <rect x="100" y="38" width="50" height="6"/>
+      <rect x="122" y="28" width="6" height="26"/>
+    </g>
+    <g fill="#c45c26">
+      <rect x="50" y="-20" width="10" height="38"/>
+      <rect x="80" y="-20" width="10" height="38"/>
+      <rect x="140" y="-20" width="10" height="38"/>
+      <rect x="170" y="-20" width="10" height="38"/>
+    </g>
+    <text x="118" y="110" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="14" font-weight="600" text-anchor="middle">HMHS Britannic</text>
+    <text x="118" y="127" fill="#c0d0e0" font-family="ui-sans-serif,system-ui" font-size="10" text-anchor="middle">1914 · hospital livery</text>
+  </g>
+
+  <!-- Ship 3: Nomadic (small tender, single funnel) -->
+  <g transform="translate(580,360)">
+    <path d="M 0 30 L 130 28 L 138 34 L 138 44 L 8 44 L 0 40 Z" fill="#151c28"/>
+    <rect x="14" y="20" width="118" height="10" fill="#f7f2ea"/>
+    <rect x="28" y="12" width="92" height="8" fill="#f7f2ea"/>
+    <rect x="46" y="4" width="56" height="8" fill="#f7f2ea"/>
+    <g fill="#2c5282">
+      <rect x="58" y="-18" width="10" height="22"/>
+    </g>
+    <line x1="34" y1="4" x2="34" y2="-26" stroke="#1a1a1a" stroke-width="0.6"/>
+    <line x1="120" y1="12" x2="120" y2="-26" stroke="#1a1a1a" stroke-width="0.6"/>
+    <text x="69" y="78" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="14" font-weight="600" text-anchor="middle">SS Nomadic</text>
+    <text x="69" y="95" fill="#c0d0e0" font-family="ui-sans-serif,system-ui" font-size="10" text-anchor="middle">1911 · tender</text>
+  </g>
+
+  <!-- Ship 4: Queen Elizabeth (long, 2 tall funnels) -->
+  <g transform="translate(740,290)">
+    <path d="M 0 60 L 240 58 L 252 66 L 252 82 L 12 82 L 0 76 Z" fill="#0c121c"/>
+    <rect x="20" y="42" width="220" height="16" fill="#f8f4ed"/>
+    <rect x="40" y="30" width="190" height="12" fill="#f8f4ed"/>
+    <rect x="60" y="20" width="150" height="10" fill="#f8f4ed"/>
+    <rect x="90" y="10" width="100" height="10" fill="#f8f4ed"/>
+    <!-- 2 tall red funnels -->
+    <g fill="#c53030">
+      <rect x="70" y="-32" width="14" height="52"/>
+      <rect x="166" y="-32" width="14" height="52"/>
+    </g>
+    <g fill="#1a1a1a">
+      <rect x="70" y="-32" width="14" height="8"/>
+      <rect x="166" y="-32" width="14" height="8"/>
+    </g>
+    <line x1="50" y1="10" x2="50" y2="-44" stroke="#1a1a1a" stroke-width="0.8"/>
+    <line x1="220" y1="20" x2="220" y2="-44" stroke="#1a1a1a" stroke-width="0.8"/>
+    <text x="126" y="118" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="14" font-weight="600" text-anchor="middle">RMS Queen Elizabeth</text>
+    <text x="126" y="135" fill="#c0d0e0" font-family="ui-sans-serif,system-ui" font-size="10" text-anchor="middle">1940 · 2 funnels · Art Deco</text>
+  </g>
+
+  <!-- Ship 5: Lusitania (slender, 4 funnels, fine bow) -->
+  <g transform="translate(60,500)">
+    <path d="M -8 40 L 200 38 L 210 46 L 210 60 L 4 60 L -8 54 Z" fill="#141a24"/>
+    <rect x="16" y="28" width="180" height="12" fill="#f0eae2"/>
+    <rect x="30" y="18" width="152" height="10" fill="#f0eae2"/>
+    <rect x="50" y="10" width="112" height="8" fill="#f0eae2"/>
+    <g fill="#b83280">
+      <rect x="40" y="-18" width="8" height="28"/>
+      <rect x="68" y="-18" width="8" height="28"/>
+      <rect x="124" y="-18" width="8" height="28"/>
+      <rect x="152" y="-18" width="8" height="28"/>
+    </g>
+    <text x="105" y="92" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="14" font-weight="600" text-anchor="middle">RMS Lusitania</text>
+    <text x="105" y="109" fill="#c0d0e0" font-family="ui-sans-serif,system-ui" font-size="10" text-anchor="middle">1906 · slender Cunarder</text>
+  </g>
+
+  <!-- Ship 6: Andrea Doria (post-war, single funnel, raked bow) -->
+  <g transform="translate(380,510)">
+    <path d="M -12 38 L 190 36 L 198 42 L 198 56 L 0 56 L -12 50 Z" fill="#101828"/>
+    <rect x="14" y="26" width="174" height="12" fill="#faf6f0"/>
+    <rect x="28" y="16" width="146" height="10" fill="#faf6f0"/>
+    <rect x="48" y="6" width="106" height="10" fill="#faf6f0"/>
+    <g fill="#2b6cb0">
+      <rect x="100" y="-22" width="14" height="38"/>
+    </g>
+    <line x1="44" y1="6" x2="44" y2="-32" stroke="#1a1a1a" stroke-width="0.7"/>
+    <line x1="170" y1="16" x2="170" y2="-32" stroke="#1a1a1a" stroke-width="0.7"/>
+    <text x="98" y="88" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="14" font-weight="600" text-anchor="middle">SS Andrea Doria</text>
+    <text x="98" y="105" fill="#c0d0e0" font-family="ui-sans-serif,system-ui" font-size="10" text-anchor="middle">1951 · raked bow</text>
+  </g>
+
+  <!-- Ship 7: Empress of Ireland (2 funnels, shorter) -->
+  <g transform="translate(660,520)">
+    <path d="M -4 36 L 170 34 L 178 40 L 178 52 L 4 52 L -4 48 Z" fill="#131820"/>
+    <rect x="14" y="24" width="156" height="12" fill="#eee8e0"/>
+    <rect x="28" y="14" width="128" height="10" fill="#eee8e0"/>
+    <rect x="48" y="4" width="88" height="10" fill="#eee8e0"/>
+    <g fill="#2f855a">
+      <rect x="60" y="-18" width="10" height="22"/>
+      <rect x="120" y="-18" width="10" height="22"/>
+    </g>
+    <line x1="40" y1="4" x2="40" y2="-26" stroke="#1a1a1a" stroke-width="0.7"/>
+    <line x1="160" y1="14" x2="160" y2="-26" stroke="#1a1a1a" stroke-width="0.7"/>
+    <text x="88" y="84" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="14" font-weight="600" text-anchor="middle">RMS Empress of Ireland</text>
+    <text x="88" y="101" fill="#c0d0e0" font-family="ui-sans-serif,system-ui" font-size="10" text-anchor="middle">1906 · CP liner</text>
+  </g>
+</svg>
+
+<p><strong>Per-ship identity cues:</strong></p>
+
+<table>
+<thead><tr><th>Ship</th><th>Distinct feature</th><th>Implementation</th></tr></thead>
+<tbody>
+<tr><td>Titanic</td><td>Long black hull, 4 buff funnels, classic white superstructure</td><td>Funnel count + color param</td></tr>
+<tr><td>Britannic</td><td>Same hull as Titanic but green stripes + red crosses</td><td>Livery material variant</td></tr>
+<tr><td>Nomadic</td><td>Compact ferry, single funnel, low freeboard</td><td>Different hull proportions + 1-funnel builder</td></tr>
+<tr><td>Queen Elizabeth</td><td>Beamy, 2 tall red funnels, longer superstructure</td><td>Wider beam param + Art Deco bridge</td></tr>
+<tr><td>Lusitania</td><td>Slender, raked bow, 4 buff funnels</td><td>Fine bow geometry</td></tr>
+<tr><td>Andrea Doria</td><td>Post-war sleek lines, single funnel, raked bow</td><td>Modern hull template</td></tr>
+<tr><td>Empress of Ireland</td><td>Shorter, 2 green funnels</td><td>Compact profile</td></tr>
+</tbody></table>
+
+<hr>
+
+<h2>5. Disaster rendering — iceberg strike</h2>
+
+<p>The current "disasters" mostly differ by label. The photorealistic pass makes each disaster <strong>look</strong> distinct: an iceberg is a blue-white mass of ice with turquoise water staining around it; a tsunami is a curling green-blue wall; a mine strike is an underwater flash and bubble plume; a boiler explosion is venting smoke and a visible hull breach.</p>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:1200px;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+  <defs>
+    <linearGradient id="iSky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a2a3a"/>
+      <stop offset="100%" stop-color="#5a7090"/>
+    </linearGradient>
+    <linearGradient id="iSea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a3850"/>
+      <stop offset="50%" stop-color="#081828"/>
+      <stop offset="100%" stop-color="#020610"/>
+    </linearGradient>
+    <linearGradient id="iIce" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8faff"/>
+      <stop offset="40%" stop-color="#b8d4ec"/>
+      <stop offset="70%" stop-color="#5a8cb8"/>
+      <stop offset="100%" stop-color="#2a4a78"/>
+    </linearGradient>
+    <radialGradient id="iGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%" stop-color="#a0d0f0" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#a0d0f0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Sky -->
+  <rect width="1200" height="380" fill="url(#iSky)"/>
+  <!-- Distant haze -->
+  <rect y="370" width="1200" height="20" fill="#5a7090" opacity="0.3"/>
+
+  <!-- Ocean -->
+  <rect y="380" width="1200" height="220" fill="url(#iSea)"/>
+
+  <!-- Iceberg (large, irregular) -->
+  <g transform="translate(700,260)">
+    <!-- Underwater portion (darker, larger) -->
+    <path d="M 0 80 L 30 60 L 80 50 L 140 55 L 200 75 L 250 110 L 240 150 L 200 180 L 130 200 L 60 195 L 10 175 Z"
+          fill="#1a3a58" opacity="0.85"/>
+    <!-- Above water portion -->
+    <path d="M 0 80 L 20 30 L 70 0 L 130 -10 L 190 20 L 230 60 L 250 110 L 200 80 L 130 70 L 60 75 Z"
+          fill="url(#iIce)"/>
+    <!-- Snow on top -->
+    <path d="M 20 30 L 70 0 L 130 -10 L 190 20 L 230 60 L 200 40 L 160 30 L 110 35 L 70 45 Z"
+          fill="#fff" opacity="0.85"/>
+    <!-- Crevasses -->
+    <g stroke="#5a8cb8" stroke-width="1" opacity="0.6">
+      <path d="M 60 10 L 75 50"/>
+      <path d="M 110 -5 L 120 40"/>
+      <path d="M 160 15 L 180 55"/>
+    </g>
+    <!-- Turquoise glow underwater -->
+    <ellipse cx="125" cy="160" rx="140" ry="40" fill="url(#iGlow)"/>
+    <!-- Highlight on top -->
+    <path d="M 70 0 L 130 -10 L 190 20 L 160 30 L 110 35 L 70 45 Z" fill="#fff" opacity="0.5"/>
+  </g>
+
+  <!-- Titanic approaching iceberg, list to starboard -->
+  <g transform="translate(80,360) rotate(-8)">
+    <!-- Hull -->
+    <path d="M 0 40 L 500 35 Q 540 35 555 45 L 555 75 Q 530 82 470 84 L 30 84 Q 0 80 -5 70 Z" fill="#0a0e16"/>
+    <!-- Antifouling -->
+    <path d="M 0 62 L 555 60 Q 530 80 470 84 L 30 84 Q 0 80 -5 70 Z" fill="#3a1a14" opacity="0.85"/>
+    <!-- White superstructure -->
+    <rect x="50" y="22" width="440" height="20" fill="#eee5d2"/>
+    <rect x="80" y="8" width="380" height="14" fill="#eee5d2"/>
+    <rect x="120" y="-4" width="300" height="12" fill="#eee5d2"/>
+    <rect x="160" y="-14" width="220" height="10" fill="#eee5d2"/>
+    <!-- Funnels -->
+    <g fill="#c45c26">
+      <rect x="100" y="-50" width="20" height="44"/>
+      <rect x="160" y="-50" width="20" height="44"/>
+      <rect x="320" y="-50" width="20" height="44"/>
+      <rect x="380" y="-50" width="20" height="44"/>
+    </g>
+    <g fill="#1a1a1a">
+      <rect x="100" y="-50" width="20" height="8"/>
+      <rect x="160" y="-50" width="20" height="8"/>
+      <rect x="320" y="-50" width="20" height="8"/>
+      <rect x="380" y="-50" width="20" height="8"/>
+    </g>
+    <!-- Portholes -->
+    <g fill="#ffd680" opacity="0.9">
+      <circle cx="80" cy="55" r="1.2"/><circle cx="140" cy="55" r="1.2"/>
+      <circle cx="200" cy="55" r="1.2"/><circle cx="260" cy="55" r="1.2"/>
+      <circle cx="320" cy="55" r="1.2"/><circle cx="380" cy="55" r="1.2"/>
+      <circle cx="440" cy="55" r="1.2"/><circle cx="500" cy="55" r="1.2"/>
+    </g>
+  </g>
+
+  <!-- Slight wake between ship and berg -->
+  <g fill="#fff" opacity="0.4">
+    <ellipse cx="620" cy="450" rx="80" ry="2"/>
+    <ellipse cx="680" cy="455" rx="40" ry="1.5" opacity="0.5"/>
+  </g>
+
+  <!-- Foreboding moon glow on horizon -->
+  <circle cx="200" cy="120" r="30" fill="#e0e8f0" opacity="0.8"/>
+  <circle cx="200" cy="120" r="60" fill="#e0e8f0" opacity="0.15"/>
+
+  <!-- Caption -->
+  <text x="40" y="540" fill="#fffaef" font-family="ui-sans-serif,system-ui" font-size="22" font-weight="700" opacity="0.95">ICEBERG STRIKE</text>
+  <text x="40" y="562" fill="#cfd5e0" font-family="ui-sans-serif,system-ui" font-size="12" opacity="0.85">cold blue ice mass · turquoise underwater glow · ship listing to starboard</text>
+  <text x="40" y="580" fill="#cfd5e0" font-family="ui-sans-serif,system-ui" font-size="12" opacity="0.85">faint moon glow · warning wake · dark moonless sea</text>
+</svg>
+
+<hr>
+
+<h2>6. Atmosphere presets</h2>
+
+<p>A photorealistic renderer wants <strong>time-of-day and weather variety</strong>. Picker options, not just one "look":</p>
+
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid meet" style="width:100%;max-width:1200px;display:block;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
+  <defs>
+    <linearGradient id="a1s" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0c1430"/><stop offset="100%" stop-color="#d6864a"/></linearGradient>
+    <linearGradient id="a1o" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#2a3a58"/><stop offset="100%" stop-color="#020610"/></linearGradient>
+    <linearGradient id="a2s" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a78c8"/><stop offset="100%" stop-color="#a8c8e0"/></linearGradient>
+    <linearGradient id="a2o" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a5a8a"/><stop offset="100%" stop-color="#0a1830"/></linearGradient>
+    <linearGradient id="a3s" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a1a1a"/><stop offset="100%" stop-color="#3a3a3a"/></linearGradient>
+    <linearGradient id="a3o" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0a1018"/><stop offset="100%" stop-color="#000"/></linearGradient>
+    <linearGradient id="a4s" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#6a6a78"/><stop offset="100%" stop-color="#a0a0a8"/></linearGradient>
+    <linearGradient id="a4o" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3a4858"/><stop offset="100%" stop-color="#1a2030"/></linearGradient>
+  </defs>
+
+  <!-- Panel 1: Golden hour -->
+  <g>
+    <rect width="600" height="320" fill="url(#a1s)"/>
+    <rect y="180" width="600" height="140" fill="url(#a1o)"/>
+    <circle cx="500" cy="180" r="35" fill="#fff8d8"/>
+    <g transform="translate(120,150)">
+      <rect x="0" y="20" width="280" height="14" fill="#0a0e16"/>
+      <rect x="20" y="6" width="240" height="14" fill="#eee5d2"/>
+      <g fill="#c45c26">
+        <rect x="60" y="-18" width="10" height="24"/>
+        <rect x="90" y="-18" width="10" height="24"/>
+        <rect x="170" y="-18" width="10" height="24"/>
+        <rect x="200" y="-18" width="10" height="24"/>
+      </g>
+    </g>
+    <text x="20" y="350" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="18" font-weight="700">GOLDEN HOUR</text>
+    <text x="20" y="368" fill="#bbb" font-family="ui-sans-serif,system-ui" font-size="11">warm low sun · long specular path</text>
+  </g>
+
+  <!-- Panel 2: Clear noon -->
+  <g transform="translate(600,0)">
+    <rect width="600" height="320" fill="url(#a2s)"/>
+    <rect y="180" width="600" height="140" fill="url(#a2o)"/>
+    <circle cx="300" cy="60" r="22" fill="#fff" opacity="0.95"/>
+    <g transform="translate(120,150)">
+      <rect x="0" y="20" width="280" height="14" fill="#0a0e16"/>
+      <rect x="20" y="6" width="240" height="14" fill="#eee5d2"/>
+      <g fill="#c45c26">
+        <rect x="60" y="-18" width="10" height="24"/>
+        <rect x="90" y="-18" width="10" height="24"/>
+        <rect x="170" y="-18" width="10" height="24"/>
+        <rect x="200" y="-18" width="10" height="24"/>
+      </g>
+    </g>
+    <text x="20" y="350" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="18" font-weight="700">CLEAR NOON</text>
+    <text x="20" y="368" fill="#bbb" font-family="ui-sans-serif,system-ui" font-size="11">bright blue · neutral white light · hard shadows</text>
+  </g>
+
+  <!-- Panel 3: Storm -->
+  <g transform="translate(0,380)">
+    <rect width="600" height="320" fill="url(#a3s)"/>
+    <rect y="180" width="600" height="140" fill="url(#a3o)"/>
+    <!-- Lightning flash hint -->
+    <path d="M 100 50 L 120 120 L 105 130 L 130 200" stroke="#b8c8e0" stroke-width="2" fill="none" opacity="0.7"/>
+    <!-- Rain streaks -->
+    <g stroke="#5a6878" stroke-width="0.6" opacity="0.6">
+      <line x1="50" y1="40" x2="40" y2="80"/><line x1="120" y1="30" x2="110" y2="70"/>
+      <line x1="200" y1="50" x2="190" y2="90"/><line x1="280" y1="20" x2="270" y2="60"/>
+      <line x1="360" y1="40" x2="350" y2="80"/><line x1="440" y1="30" x2="430" y2="70"/>
+      <line x1="520" y1="50" x2="510" y2="90"/>
+    </g>
+    <g transform="translate(120,150)">
+      <rect x="0" y="20" width="280" height="14" fill="#0a0e16"/>
+      <rect x="20" y="6" width="240" height="14" fill="#c0b8a8"/>
+      <g fill="#7a3818">
+        <rect x="60" y="-18" width="10" height="24"/>
+        <rect x="90" y="-18" width="10" height="24"/>
+        <rect x="170" y="-18" width="10" height="24"/>
+        <rect x="200" y="-18" width="10" height="24"/>
+      </g>
+    </g>
+    <text x="20" y="350" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="18" font-weight="700">STORM</text>
+    <text x="20" y="368" fill="#bbb" font-family="ui-sans-serif,system-ui" font-size="11">overcast · rain · whitecaps · lightning</text>
+  </g>
+
+  <!-- Panel 4: Overcast / fog -->
+  <g transform="translate(600,380)">
+    <rect width="600" height="320" fill="url(#a4s)"/>
+    <rect y="180" width="600" height="140" fill="url(#a4o)"/>
+    <!-- Fog overlay -->
+    <rect width="600" height="320" fill="#aab0b8" opacity="0.25"/>
+    <g transform="translate(120,150)" opacity="0.85">
+      <rect x="0" y="20" width="280" height="14" fill="#0a0e16"/>
+      <rect x="20" y="6" width="240" height="14" fill="#b8b0a0"/>
+      <g fill="#9a6840">
+        <rect x="60" y="-18" width="10" height="24"/>
+        <rect x="90" y="-18" width="10" height="24"/>
+        <rect x="170" y="-18" width="10" height="24"/>
+        <rect x="200" y="-18" width="10" height="24"/>
+      </g>
+    </g>
+    <text x="20" y="350" fill="#fff" font-family="ui-sans-serif,system-ui" font-size="18" font-weight="700">OVERCAST FOG</text>
+    <text x="20" y="368" fill="#bbb" font-family="ui-sans-serif,system-ui" font-size="11">flat diffuse · low contrast · soft horizon</text>
+  </g>
+</svg>
+
+<p><strong>Preset parameters that change:</strong> sun direction + color, sky gradient, fog density and color, water reflectance, tone-mapping exposure, shadow softness, particle count for rain/spray, exposure compensation.</p>
+
+<hr>
+
+<h2>7. Implementation — what we'd actually change</h2>
+
+<p>Roughly ordered by visual impact / effort ratio. Each row is independently shippable.</p>
+
+<table>
+<thead><tr><th>#</th><th>Change</th><th>Visual impact</th><th>Effort</th><th>Files touched</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><strong>Procedural sky + PMREM env map</strong> — replace solid <code>scene.background</code> with a gradient sky shader, generate an env map from it so all materials reflect the sky</td><td>High</td><td>M</td><td><code>scene.js</code></td></tr>
+<tr><td>2</td><td><strong>Gerstner waves</strong> — replace sine sum with stacked Gerstner waves (3–4 directions), giving sharper crests and proper reflection of geometry</td><td>High</td><td>M</td><td><code>scene.js</code>, <code>main.js</code></td></tr>
+<tr><td>3</td><td><strong>Foam + wet sheen near hull</strong> — distance-based screen-space foam texture blended into water; vertical wet gradient on hull based on dynamic waterline</td><td>High</td><td>M</td><td><code>scene.js</code>, <code>shipMesh.js</code></td></tr>
+<tr><td>4</td><td><strong>Hull normal map + rivet rows</strong> — add a procedural normal map (or small baked one) for plating seams; instanced rivet geometry along seams</td><td>Medium</td><td>S</td><td><code>shipMesh.js</code></td></tr>
+<tr><td>5</td><td><strong>Per-ship liveries</strong> — Britannic green stripes + red cross, QE Art Deco bridge, Lusitania fine bow, Andrea Doria raked profile</td><td>Medium</td><td>M</td><td><code>ships.js</code>, <code>shipMesh.js</code></td></tr>
+<tr><td>6</td><td><strong>Atmosphere presets</strong> — picker for Golden / Noon / Storm / Fog; drives sun, fog, exposure, particles</td><td>Medium</td><td>M</td><td>new <code>atmosphere.js</code></td></tr>
+<tr><td>7</td><td><strong>Reflections on hull/water via env map</strong> — all metalness > 0 materials now reflect real sky</td><td>High</td><td>S</td><td>(covered by #1)</td></tr>
+<tr><td>8</td><td><strong>Animated sea spray at bow / during disasters</strong> — GPU particle system tied to ship velocity + disaster phase</td><td>Medium</td><td>M</td><td><code>scene.js</code></td></tr>
+<tr><td>9</td><td><strong>Better tsunami / iceberg / smoke geometry</strong> — proper mesh shapes instead of tinted planes; volumetric-ish smoke shader</td><td>Medium</td><td>M</td><td><code>scene.js</code>, <code>disasters.js</code></td></tr>
+<tr><td>10</td><td><strong>HDR tone-mapping tweaks + bloom</strong> — <code>ACESFilmicToneMapping</code> already on, add a soft bloom pass for sun and specular highlights</td><td>Low</td><td>S</td><td><code>scene.js</code></td></tr>
+<tr><td>11</td><td><strong>Wet/dry deck as ship floods</strong> — interior flooding raises a translucent water plane inside the hull; deck above gets a wet darken shader</td><td>Medium</td><td>M</td><td><code>physics.js</code>, <code>shipMesh.js</code></td></tr>
+<tr><td>12</td><td><strong>Cloud / skybox shader</strong> — full procedural sky with sun disc, atmospheric scattering, and time-of-day parameter</td><td>High</td><td>L</td><td>new <code>sky.js</code></td></tr>
+</tbody></table>
+
+<p>Total is a substantial graphics pass but mostly additive — the physics, ship picker, disaster selection, and HUD all stay the same.</p>
+
+<hr>
+
+<h2>8. What this is <em>not</em></h2>
+
+<ul><li><strong>Not</strong> Hollywood VFX. We won't ship Arnold-rendered ocean displacements or</li></ul>
+<p>hand-painted textures from concept artists.</p>
+<ul><li><strong>Not</strong> a perf budget blowout. Everything above targets a single 1080p</li></ul>
+<p>desktop browser at 30–60 fps on integrated GPU. Worst-case is the Gerstner wave density and the env-map resolution, both tunable.</p>
+<ul><li><strong>Not</strong> a rewrite. The current <code>physics.js</code>, <code>disasters.js</code>, <code>ships.js</code> data,</li></ul>
+<p>and <code>main.js</code> loop stay; this is a render-layer upgrade on top.</p>
+
+<hr>
+
+<h2>9. Next step</h2>
+
+<p>If this looks right, the implementation plan is:</p>
+
+<ol><li>Land #1 (procedural sky + env map) first — single biggest bang for the buck.</li><li>Then #2 + #3 (Gerstner waves + foam) — the ocean becomes the actual star.</li><li>Then #4 + #5 (hull detail + per-ship liveries) — ships stop feeling like</li></ol>
+<p>reskins.</p>
+<ol><li>Then #6 (atmosphere presets) — the picker actually offers variety.</li><li>The rest (#7–#12) as polish / follow-ups.</li></ol>
+
+<p>Want me to start on #1–#2 now, or do you want to adjust the direction first (less golden hour / more storm, different ship list, etc.)?</p>
+
+<footer class="page">
+  Generated from <code>photorealistic-preview.md</code> ·
+  Sinking Sim · render-upgrade proposal
+</footer>
+</main>
+</body>
+</html>
