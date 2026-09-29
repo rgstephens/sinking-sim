@@ -1,7 +1,7 @@
 IMAGE ?= registry.gstephens.org/sinking-sim
 override VERSION := $(shell node -p "require('./package.json').version")
-BUILD_DATE ?= 27 Sep 2026
-OCI_CREATED ?= 2026-09-27T00:00:00Z
+BUILD_DATE ?= 29 Sep 2026
+OCI_CREATED ?= 2026-09-29T00:00:00Z
 
 .PHONY: docker-login docker-build-all docker-verify-images docker-push-all docker-release
 
