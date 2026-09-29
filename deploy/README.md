@@ -23,7 +23,7 @@ cp .env.example .env
 docker network inspect app-network >/dev/null 2>&1 || docker network create app-network
 docker login registry.gstephens.org
 docker compose config
-./release.sh 1.0.1
+./release.sh 1.1.0
 docker compose ps
 curl --fail http://127.0.0.1:8089/healthz
 ```
@@ -69,13 +69,13 @@ Run `./release.sh <previous-tag>`. For the first release, stop and remove the st
 ## Verify a release
 
 ```bash
-docker buildx imagetools inspect registry.gstephens.org/sinking-sim:1.0.1
+docker buildx imagetools inspect registry.gstephens.org/sinking-sim:1.1.0
 docker compose ps
-docker logs sinking-sim-web 2>&1 | grep 'Sinking Sim 1.0.1'
+docker logs sinking-sim-web 2>&1 | grep 'Sinking Sim 1.1.0'
 curl --fail https://sinking-sim.gstephens.org/healthz
 curl --fail --head https://sinking-sim.gstephens.org/
 openssl s_client -connect sinking-sim.gstephens.org:443 -servername sinking-sim.gstephens.org </dev/null 2>/dev/null \
   | openssl x509 -noout -subject -issuer -dates
 ```
 
-Confirm the manifest lists both `linux/amd64` and `linux/arm64`, the certificate is valid, the page shows `v1.0.1 · 27 Sep 2026`, and a real browser can start the game with working WebGL and no new console errors.
+Confirm the manifest lists both `linux/amd64` and `linux/arm64`, the certificate is valid, the page shows `v1.1.0 · 29 Sep 2026`, and a real browser can start the game with working WebGL and no new console errors.

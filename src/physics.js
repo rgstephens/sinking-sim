@@ -26,6 +26,20 @@ export const MAX_FLOAT_Y = 0.08;
 export const SEABED_Y = -18;
 export const MAX_SPEED = 8;
 const HELM_RATE = 0.34;
+// Full astern order. Screws pull less going astern than ahead.
+export const MIN_THROTTLE = -0.75;
+export const ASTERN_POWER = 0.6;
+
+/** Speed the engines settle at for a throttle order, before flooding drag. */
+export function throttleSpeed(throttle) {
+  const t = Math.max(MIN_THROTTLE, Math.min(1, throttle));
+  return t * MAX_SPEED * (t < 0 ? ASTERN_POWER : 1);
+}
+
+/** Inverse of throttleSpeed: the order a given speed answers to. */
+export function speedThrottle(speed) {
+  return speed / (MAX_SPEED * (speed < 0 ? ASTERN_POWER : 1));
+}
 
 export function createSimulation(ship) {
   const n = ship.compartments;
@@ -212,7 +226,7 @@ export function stepSimulation(state, dt) {
   state.rotation.roll += state.angularVel.roll * t;
 
   const drag = state.onSeabed ? 0 : Math.max(0.05, 1 - floodFrac * 0.85);
-  const targetSpeed = Math.max(-0.22, state.throttle) * MAX_SPEED * drag;
+  const targetSpeed = throttleSpeed(state.throttle) * drag;
   state.speed += (targetSpeed - state.speed) * (1 - Math.exp(-1.15 * t));
   if (state.onSeabed) state.speed *= Math.exp(-2.4 * t);
 
