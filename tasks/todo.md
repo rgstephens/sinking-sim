@@ -89,3 +89,14 @@ Production release evidence:
 - Dell runs healthy image `registry.gstephens.org/sinking-sim:1.0.1`; startup logs print `Sinking Sim 1.0.1 (27 Sep 2026)` and `1.0.0` remains the rollback tag.
 - Public `/healthz` and `/` return HTTP 200 through Nginx Proxy Manager; the existing Let's Encrypt certificate remains valid through 26 Dec 2026.
 - A production browser obtained WebGL2 with zero console errors, visibly displayed `v1.0.1 · 27 Sep 2026`, and transitioned RMS Titanic to `Underway`. Final screenshot: `/tmp/sinking-sim-issue6.5oPktH/production-1.0.1.png`.
+
+# Bridge wheel and engine telegraph (GitHub issue #11)
+
+- [x] Pure mapping in `src/bridge.js`: nine engine orders, wheel angle ↔ helm (±150° is hard over), dial detents, key-release snapping.
+- [x] SVG ship's wheel (lower left) and engine-order telegraph (lower right) in `src/bridgeControls.js`, pointer events with capture, `touch-action: none`, `pointercancel`.
+- [x] Keys: held A/D force ±1 and the wheel shows it; release returns to the wheel angle (amidships if untouched). W/S sweep the handle; release settles on the nearest order, and a tap steps one order.
+- [x] Physics: astern floor raised from −0.22 to full astern (−0.75) with 60% astern screw efficiency; ahead unchanged.
+- [x] Layout: key hint above the telegraph, dash lifted below 1000px, safe-area insets, 124px controls at ≤720px.
+- [x] `npm test` covers the order table, wheel angle ↔ helm at amidships and both hard-over ends, key snapping, right-wheel-to-starboard, and full vs slow astern speed.
+- [x] Browser checks (headless Chrome, WebGL): drags, keys, touch, no camera orbit, no scroll/zoom, no overlaps at 1280, 900, 720 and 390 px.
+- [x] Version prepared as `1.1.0`.

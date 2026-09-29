@@ -28,7 +28,7 @@ The production image is published as `registry.gstephens.org/sinking-sim:<versio
 
 1. Choose a ship and an atmosphere.
 2. Click **Get Underway**. The ship is already steaming.
-3. Steer with `A` / `D` (or the arrow keys). `W` and `S` change throttle.
+3. Steer with the ship's wheel in the lower left: drag it round and it stays where you leave it. About half a turn either way is hard over; double-click puts it back amidships. Order speed with the engine telegraph in the lower right: drag the handle to an order from Full astern to Full ahead, and the small pointer shows the engines answering. The keys still work: holding `A` / `D` (or the arrow keys) puts the rudder hard over until you let go, and `W` / `S` step the telegraph one order at a time, or sweep it if held.
 4. A hazard shows up at random — iceberg, mine, wave, or a boiler running hot. The banner tells you which way to turn, or to cut throttle. Miss it and another one comes. Hit it and the ship floods, lists, and goes down.
 5. `C` cycles chase, free, and dock cameras. Drag to orbit in free camera. Scroll to zoom.
 

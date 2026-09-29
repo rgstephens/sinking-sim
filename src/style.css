@@ -302,3 +302,221 @@ button:active {
     max-width: calc(100vw - 24px);
   }
 }
+
+/* --- Bridge controls: ship's wheel (lower left), telegraph (lower right) --- */
+
+:root {
+  --bridge-size: 150px;
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.bridge.hidden {
+  display: none;
+}
+
+.bridge-wheel,
+.bridge-telegraph {
+  position: absolute;
+  width: var(--bridge-size);
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  cursor: grab;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.45));
+}
+
+.bridge-wheel.dragging,
+.bridge-telegraph.dragging {
+  cursor: grabbing;
+}
+
+.bridge-wheel svg,
+.bridge-telegraph svg {
+  display: block;
+  width: var(--bridge-size);
+  height: var(--bridge-size);
+  overflow: visible;
+}
+
+.bridge-wheel {
+  left: calc(16px + var(--safe-left));
+  bottom: calc(36px + var(--safe-bottom));
+}
+
+.bridge-telegraph {
+  right: calc(16px + var(--safe-right));
+  bottom: calc(16px + var(--safe-bottom));
+}
+
+/* Wheel */
+.bridge-wheel .rim {
+  fill: none;
+  stroke: url(#teak);
+  stroke-width: 12;
+}
+.bridge-wheel .rim-grain {
+  fill: none;
+  stroke: rgba(255, 220, 170, 0.18);
+  stroke-width: 1.5;
+}
+.bridge-wheel .spoke {
+  stroke: #6b3c1c;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+.bridge-wheel .handle {
+  fill: url(#teak);
+  stroke: #3d220e;
+  stroke-width: 1;
+}
+.bridge-wheel .handle.king,
+.bridge-wheel .king-band {
+  fill: url(#brass);
+  stroke: #5a3d10;
+}
+.bridge-wheel .hub,
+.bridge-telegraph .hub {
+  fill: url(#brass);
+  stroke: #5a3d10;
+  stroke-width: 1.5;
+}
+.bridge-wheel .hub-cap,
+.bridge-telegraph .hub-cap {
+  fill: #fff0bf;
+  opacity: 0.7;
+}
+.bridge-wheel .wheel-port,
+.bridge-wheel .wheel-stbd {
+  fill: none;
+  stroke-width: 4;
+  opacity: 0.8;
+}
+.bridge-wheel .wheel-port {
+  stroke: #d6453b;
+}
+.bridge-wheel .wheel-stbd {
+  stroke: #3fbf6a;
+}
+.bridge-wheel .mark-mid,
+.bridge-wheel .mark-hard {
+  stroke: #f2d27a;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.bridge-wheel .mark-hard {
+  stroke: #f4f7fb;
+}
+
+/* Telegraph */
+.bridge-telegraph .dial-rim {
+  fill: url(#brass);
+  stroke: #5a3d10;
+  stroke-width: 2;
+}
+.bridge-telegraph .dial-face {
+  fill: url(#dialFace);
+  stroke: #7a5a20;
+  stroke-width: 1.5;
+}
+.bridge-telegraph .dial-astern,
+.bridge-telegraph .dial-ahead {
+  fill: none;
+  stroke-width: 28;
+}
+.bridge-telegraph .dial-astern {
+  stroke: rgba(176, 44, 34, 0.2);
+}
+.bridge-telegraph .dial-ahead {
+  stroke: rgba(40, 60, 90, 0.08);
+}
+.bridge-telegraph .dial-div {
+  stroke: #3b2a14;
+  stroke-width: 1.2;
+}
+.bridge-telegraph .dial-label {
+  font: 700 8.5px "Georgia", serif;
+  fill: #2a1d0c;
+  text-anchor: middle;
+  dominant-baseline: middle;
+  letter-spacing: 0.02em;
+}
+.bridge-telegraph .dial-label.stop {
+  fill: #9e1f16;
+}
+.bridge-telegraph .dial-word {
+  font: 700 9px "Georgia", serif;
+  fill: #5c4420;
+  text-anchor: middle;
+  letter-spacing: 0.12em;
+}
+.bridge-telegraph .answer {
+  fill: #1c1c1c;
+  opacity: 0.75;
+}
+.bridge-telegraph .lever-arm {
+  fill: url(#brass);
+  stroke: #5a3d10;
+  stroke-width: 1;
+}
+.bridge-telegraph .lever-knob {
+  fill: #2b1a0c;
+  stroke: #d4a64a;
+  stroke-width: 3;
+}
+.telegraph-order {
+  margin-top: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(16, 20, 28, 0.82);
+  border: 1px solid rgba(242, 193, 78, 0.45);
+  color: #f2c14e;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Make room: key hint above the telegraph, dash clear of both controls. */
+.bridge-on .keys {
+  bottom: calc(16px + var(--bridge-size) + 44px + var(--safe-bottom));
+}
+
+@media (max-width: 1000px) {
+  .bridge-on .dash {
+    bottom: calc(var(--bridge-size) + 60px + var(--safe-bottom));
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    --bridge-size: 124px;
+  }
+
+  .bridge-wheel {
+    left: calc(8px + var(--safe-left));
+    bottom: calc(26px + var(--safe-bottom));
+  }
+
+  .bridge-telegraph {
+    right: calc(8px + var(--safe-right));
+    bottom: calc(8px + var(--safe-bottom));
+  }
+
+  .bridge-on .build-info {
+    bottom: calc(8px + var(--safe-bottom));
+  }
+
+  .bridge-on .dash {
+    bottom: calc(var(--bridge-size) + 46px + var(--safe-bottom));
+  }
+
+  /* The key hint is already at the top on narrow screens. */
+  .bridge-on .keys {
+    bottom: auto;
+  }
+}

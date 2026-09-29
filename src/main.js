@@ -14,12 +14,21 @@ import {
   headingDegrees,
   bowDirection,
   MAX_SPEED,
+  speedThrottle,
 } from "./physics.js";
 import { createHazard, pickDisaster, updateHazard, hazardWarning } from "./hazards.js";
 import { getDisaster } from "./disasters.js";
 import { createScene } from "./scene.js";
 import { createAtmosphere } from "./atmosphere.js";
 import { formatBuildInfo } from "./buildInfo.js";
+import {
+  ENGINE_ORDERS,
+  MIN_THROTTLE,
+  MAX_THROTTLE,
+  nearestOrderIndex,
+  keyReleaseOrderIndex,
+} from "./bridge.js";
+import { createWheel, createTelegraph } from "./bridgeControls.js";
 
 const canvas = document.getElementById("c");
 const shipSelect = document.getElementById("ship-select");
@@ -40,6 +49,8 @@ const statFlood = document.getElementById("stat-flood");
 const statList = document.getElementById("stat-list");
 const statState = document.getElementById("stat-state");
 const buildInfo = document.getElementById("build-info");
+const hudEl = document.getElementById("hud");
+const bridgeEl = document.getElementById("bridge");
 
 buildInfo.textContent = formatBuildInfo(__APP_VERSION__, __BUILD_DATE__);
 
@@ -64,6 +75,22 @@ for (const p of atmo.presets()) {
 
 const CAM_MODES = ["chase", "orbit", "dock"];
 const held = new Set();
+const HELM_KEYS = ["KeyA", "KeyD", "ArrowLeft", "ArrowRight"];
+const THROTTLE_KEYS = ["KeyW", "KeyS", "ArrowUp", "ArrowDown"];
+
+// The wheel's angle is the rudder order; the telegraph's handle is the engine order.
+const wheel = createWheel(bridgeEl, {
+  onHelm(helm) {
+    if (sim) sim.helm = helm;
+  },
+});
+const telegraph = createTelegraph(bridgeEl, {
+  onOrder(i) {
+    if (sim) sim.throttle = ENGINE_ORDERS[i].throttle;
+  },
+});
+// Throttle when W/S went down, so release can settle on an order.
+let nudgeFrom = null;
 
 let sim = null;
 let running = false;
@@ -111,6 +138,11 @@ function startSimulation() {
   setupPanel.classList.add("hidden");
   simPanel.classList.remove("hidden");
   dashEl.classList.remove("hidden");
+  bridgeEl.classList.remove("hidden");
+  hudEl.classList.add("bridge-on");
+  wheel.reset();
+  nudgeFrom = null;
+  telegraph.setOrder(nearestOrderIndex(sim.throttle));
   statusShip.textContent = ship.name;
   statusDisaster.textContent = "Underway";
   updateSpeedLabel();
@@ -128,6 +160,8 @@ function resetSimulation() {
   hazard = null;
   simPanel.classList.add("hidden");
   dashEl.classList.add("hidden");
+  bridgeEl.classList.add("hidden");
+  hudEl.classList.remove("bridge-on");
   alertEl.classList.add("hidden");
   setupPanel.classList.remove("hidden");
   world.clearHazard();
@@ -192,15 +226,28 @@ function applyInput(dt) {
     return;
   }
   if (held.has("KeyW") || held.has("ArrowUp")) {
-    sim.throttle = Math.min(1, sim.throttle + dt * 0.45);
+    sim.throttle = Math.min(MAX_THROTTLE, sim.throttle + dt * 0.45);
   }
   if (held.has("KeyS") || held.has("ArrowDown")) {
-    sim.throttle = Math.max(-0.2, sim.throttle - dt * 0.55);
+    sim.throttle = Math.max(MIN_THROTTLE, sim.throttle - dt * 0.55);
   }
-  let helm = 0;
-  if (held.has("KeyA") || held.has("ArrowLeft")) helm -= 1;
-  if (held.has("KeyD") || held.has("ArrowRight")) helm += 1;
-  sim.helm = helm;
+  // Held A/D force the rudder hard over; otherwise the wheel's angle holds.
+  if (HELM_KEYS.some((k) => held.has(k))) {
+    let helm = 0;
+    if (held.has("KeyA") || held.has("ArrowLeft")) helm -= 1;
+    if (held.has("KeyD") || held.has("ArrowRight")) helm += 1;
+    sim.helm = helm;
+    wheel.show(helm);
+  } else {
+    sim.helm = wheel.helm();
+    wheel.show(null);
+  }
+}
+
+/** Telegraph handle follows a key nudge; the answering pointer follows the engines. */
+function updateBridge() {
+  if (!sim) return;
+  telegraph.update(sim.throttle, speedThrottle(sim.speed), nudgeFrom !== null);
 }
 
 function updateEncounter(dt) {
@@ -347,6 +394,7 @@ function tick(now) {
     }
     presentShip();
     updateDash();
+    updateBridge();
     world.updateDebris(rawDt);
   } else {
     const preview = world.getShip();
@@ -380,6 +428,7 @@ window.addEventListener("keydown", (e) => {
   }
   held.add(e.code);
   if (e.repeat) return;
+  if (THROTTLE_KEYS.includes(e.code) && sim && nudgeFrom === null) nudgeFrom = sim.throttle;
 
   if (e.code === "Space" && running) {
     speedSlider.value = simSpeed > 0 ? "0" : "1";
@@ -400,11 +449,26 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyC") cycleCamera();
 });
 
+/** When the last W/S key comes up, settle the nudge on an engine order. */
+function settleNudge() {
+  if (nudgeFrom === null || THROTTLE_KEYS.some((k) => held.has(k))) return;
+  if (sim) {
+    const i = keyReleaseOrderIndex(nudgeFrom, sim.throttle);
+    sim.throttle = ENGINE_ORDERS[i].throttle;
+    telegraph.setOrder(i);
+  }
+  nudgeFrom = null;
+}
+
 window.addEventListener("keyup", (e) => {
   held.delete(e.code);
+  settleNudge();
 });
 
-window.addEventListener("blur", () => held.clear());
+window.addEventListener("blur", () => {
+  held.clear();
+  settleNudge();
+});
 
 placePreviewShip();
 updateSpeedLabel();

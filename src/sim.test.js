@@ -12,6 +12,18 @@ import {
 } from "./physics.js";
 import { createHazard, updateHazard } from "./hazards.js";
 import { buildShipMesh, splitShip } from "./shipMesh.js";
+import {
+  ENGINE_ORDERS,
+  WHEEL_HARD_OVER,
+  wheelAngleToHelm,
+  helmToWheelAngle,
+  nearestOrderIndex,
+  orderDialAngle,
+  dialAngleToOrderIndex,
+  throttleToDialAngle,
+  keyReleaseOrderIndex,
+} from "./bridge.js";
+import { MIN_THROTTLE, throttleSpeed, speedThrottle } from "./physics.js";
 import { formatBuildInfo } from "./buildInfo.js";
 
 assert.equal(
@@ -271,5 +283,71 @@ const sternHalf = countX(parts.stern, (x) => x > -2);
 assert.ok(bowHalf.n > 0 && sternHalf.n > 0, "both halves keep hull geometry");
 assert.ok(bowHalf.bad < 20, `bow half leaked stern vertices (${bowHalf.bad})`);
 assert.ok(sternHalf.bad < 20, `stern half leaked bow vertices (${sternHalf.bad})`);
+
+// --- Bridge controls (issue #11) ---
+
+// Engine-order telegraph: nine orders, astern → ahead, with the issue's throttles.
+assert.deepEqual(
+  ENGINE_ORDERS.map((o) => [o.label, o.throttle]),
+  [
+    ["Full astern", -0.75],
+    ["Half astern", -0.5],
+    ["Slow astern", -0.25],
+    ["Dead slow astern", -0.12],
+    ["Stop", 0],
+    ["Dead slow ahead", 0.12],
+    ["Slow ahead", 0.28],
+    ["Half ahead", 0.55],
+    ["Full ahead", 1],
+  ],
+  "telegraph order table"
+);
+assert.equal(MIN_THROTTLE, ENGINE_ORDERS[0].throttle, "physics astern floor is full astern");
+ENGINE_ORDERS.forEach((o, i) => {
+  assert.equal(nearestOrderIndex(o.throttle), i, `${o.label} snaps to itself`);
+  assert.equal(dialAngleToOrderIndex(orderDialAngle(i)), i, `${o.label} dial detent`);
+  assert.equal(throttleToDialAngle(o.throttle), orderDialAngle(i), `${o.label} dial angle`);
+});
+assert.equal(orderDialAngle(4), 0, "Stop sits at the top of the dial");
+assert.ok(orderDialAngle(8) > 0 && orderDialAngle(0) < 0, "ahead clockwise of astern");
+assert.equal(ENGINE_ORDERS[dialAngleToOrderIndex(orderDialAngle(7) + 14)].label, "Half ahead", "release snaps to nearest");
+assert.equal(ENGINE_ORDERS[dialAngleToOrderIndex(999)].label, "Full ahead", "dial clamps ahead");
+assert.equal(ENGINE_ORDERS[dialAngleToOrderIndex(-999)].label, "Full astern", "dial clamps astern");
+assert.equal(createSimulation(getShip("titanic")).throttle, 0.55, "new sims start at Half ahead");
+
+// W/S nudges settle on an order when released; a tap is a single step.
+assert.equal(keyReleaseOrderIndex(0.55, 0.56), 8, "tap W from Half ahead → Full ahead");
+assert.equal(keyReleaseOrderIndex(0.55, 0.54), 6, "tap S from Half ahead → Slow ahead");
+assert.equal(keyReleaseOrderIndex(0.55, 0.1), 5, "held S lands on the nearest order");
+assert.equal(keyReleaseOrderIndex(0.55, 0.55), 7, "no movement keeps the order");
+assert.equal(keyReleaseOrderIndex(1, 1), 8, "Full ahead stays at the end");
+
+// Wheel: amidships is zero helm, about half a turn either side is hard over.
+assert.equal(wheelAngleToHelm(0), 0, "amidships");
+assert.equal(wheelAngleToHelm(WHEEL_HARD_OVER), 1, "hard over to starboard");
+assert.equal(wheelAngleToHelm(-WHEEL_HARD_OVER), -1, "hard over to port");
+assert.equal(wheelAngleToHelm(WHEEL_HARD_OVER * 3), 1, "past the stop stays hard over");
+assert.ok(Math.abs(wheelAngleToHelm(WHEEL_HARD_OVER / 2) - 0.5) < 1e-12, "half wheel is half helm");
+assert.ok(WHEEL_HARD_OVER > Math.PI * 0.7 && WHEEL_HARD_OVER <= Math.PI, "one gesture, not several turns");
+assert.ok(Math.abs(helmToWheelAngle(wheelAngleToHelm(1.1)) - 1.1) < 1e-12, "angle ↔ helm round trip");
+
+// Turning the wheel right (positive angle) swings the bow to starboard.
+const wheelTurn = createSimulation(getShip("titanic"));
+wheelTurn.helm = wheelAngleToHelm(WHEEL_HARD_OVER * 0.6);
+for (let i = 0; i < 40; i++) stepSimulation(wheelTurn, 0.05);
+assert.ok(wheelTurn.rotation.yaw > 0, "right wheel increases yaw");
+
+// Full astern is faster astern than slow astern, and the answer pointer lands on the order.
+const settle = (throttle) => {
+  const s = createSimulation(getShip("titanic"));
+  s.throttle = throttle;
+  for (let i = 0; i < 400; i++) stepSimulation(s, 0.05);
+  return s.speed;
+};
+const fullAstern = settle(-0.75);
+const slowAstern = settle(-0.25);
+assert.ok(fullAstern < slowAstern - 1, `full astern ${fullAstern} vs slow astern ${slowAstern}`);
+assert.ok(Math.abs(settle(1) - throttleSpeed(1)) < 0.05, "full ahead unchanged at MAX_SPEED");
+assert.ok(Math.abs(speedThrottle(fullAstern) + 0.75) < 0.02, "answer pointer reaches full astern");
 
 console.log("sim tests passed");
