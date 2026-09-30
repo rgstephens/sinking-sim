@@ -139,3 +139,20 @@ Verification:
 - Independent review identified and resolved Fubuki duplicating a torpedo mount at the exact break boundary, Yamato secondary guns intersecting neighbouring turret roofs, and Akagi's flight deck lacking hull overhang. Clearance tests now measure actual barrel bounds; submarine freeboard is measured amidships rather than at the raised bow.
 
 Manual dive/surface controls remain outside the issue's minimum scope. Release metadata is prepared; production deployment is not part of this change.
+
+# Issue #5 merge and deployment
+
+- [x] Verify PR #16 is mergeable, reviewed, and the working tree is clean.
+- [x] Confirm Docker builder, registry release process, Dell access, and rollback tag `1.1.0`.
+- [x] Merge PR #16 and update local main.
+- [x] Build/test both image architectures, publish version `1.2.0`, and verify the registry manifest.
+- [x] Deploy with `release.sh` and verify container health, startup metadata, HTTPS, and a live WebGL game.
+- [x] Record release evidence and publish the version tag.
+
+## Version 1.2.0 deployment review
+
+- PR #16 merged as `4de6361fb0587e9aaaf3213991b6d07c72ba5cce`; the release tag `v1.2.0` identifies that code.
+- `make docker-push-all` built and tested both architectures, verified image version/creation labels, and published manifest `sha256:466a80ca2eac27bf7a858be830a72f5c5bc7f14a3866364ee787af80a3b8da88` for `linux/amd64` and `linux/arm64`. Dependency audit found zero vulnerabilities.
+- Dell's `~/Docker/sinking-sim/release.sh 1.2.0` succeeded. Container `sinking-sim-web` is healthy, startup logs print `Sinking Sim 1.2.0 (29 Sep 2026)`, and the `1.1.0` image remains available for rollback.
+- Public `/healthz` and `/` return HTTP 200 via HTTPS. The existing Let's Encrypt certificate is valid through 26 Dec 2026.
+- A fresh isolated Chrome browser loaded 27 ships, displayed `v1.2.0 · 29 Sep 2026`, obtained WebGL2, and started both Iowa and U-boat as `Underway`, with zero JavaScript exceptions. [Production screenshot](screenshots/issue-5/production-1.2.0.jpg).
