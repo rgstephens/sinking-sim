@@ -5,7 +5,7 @@ import {
   updateDamageEffects,
 } from "./shipMesh.js";
 import { applyHullDetail } from "./hullDetail.js";
-import { SHIPS, getShip } from "./ships.js";
+import { getShip, shipGroups, shipLabel } from "./ships.js";
 import {
   createSimulation,
   stepSimulation,
@@ -54,11 +54,16 @@ const bridgeEl = document.getElementById("bridge");
 
 buildInfo.textContent = formatBuildInfo(__APP_VERSION__, __BUILD_DATE__);
 
-for (const s of SHIPS) {
-  const opt = document.createElement("option");
-  opt.value = s.id;
-  opt.textContent = `${s.name} (${s.year})`;
-  shipSelect.appendChild(opt);
+for (const group of shipGroups()) {
+  const optgroup = document.createElement("optgroup");
+  optgroup.label = group.label;
+  for (const s of group.ships) {
+    const opt = document.createElement("option");
+    opt.value = s.id;
+    opt.textContent = shipLabel(s);
+    optgroup.appendChild(opt);
+  }
+  shipSelect.appendChild(optgroup);
 }
 
 const world = createScene(canvas);

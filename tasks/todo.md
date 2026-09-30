@@ -100,3 +100,42 @@ Production release evidence:
 - [x] `npm test` covers the order table, wheel angle ↔ helm at amidships and both hard-over ends, key snapping, right-wheel-to-starboard, and full vs slow astern speed.
 - [x] Browser checks (headless Chrome, WebGL): drags, keys, touch, no camera orbit, no scroll/zoom, no overlaps at 1280, 900, 720 and 390 px.
 - [x] Version prepared as `1.1.0`.
+
+# WWII warships and submarines (GitHub issue #5)
+
+- [x] `ships.js`: `category`/`navy` on every ship; 20 warships across USN, RN, Kriegsmarine, IJN, Regia Marina, Marine Nationale and VMF, incl. 3 submarines (Gato, Type VII, I-15) and 3 carriers; turret, secondary, protection/strength, screw and livery data.
+- [x] `shipMesh.js` style: per-category defaults + a per-ship entry for every ship (no Titanic fallback); submarine section/stern form; deck material (teak/steel).
+- [x] Warship builders: turrets (barbette, sloped gunhouse, barrels, superfiring), secondary mounts, bridge towers (tower / pagoda / compact / cruiser), tripod/pole masts, warship funnels (shared funnel builder), boats.
+- [x] Carrier builder: hangar, split-at-break flight deck with markings and elevators, island (starboard; port on Akagi), Akagi's downturned stack, parked aircraft.
+- [x] Submarine builder: casing, conning tower with bridge/periscopes, deck gun, dive planes, jumping wires, limber holes.
+- [x] Hull shader: Measure 22 band, dark sub bottom, limber holes, darkened-ship portholes.
+- [x] Breakup: turrets/towers/islands split as whole groups.
+- [x] Physics: protection reduces breach size; hull strength scales breakup thresholds.
+- [x] Dropdown grouped by category with `<optgroup>`s.
+- [x] Tests: every ship builds with invariants, owns a style, turrets/flight deck/conning tower present per category, sinks sanely, hazards hit/miss across short and long hulls.
+- [x] Verify in a real browser (screenshots per category + a warship sink), bump to 1.2.0; PR preparation follows verification.
+
+## Issue #5 completion plan
+
+- [x] Read the issue and audit the existing uncommitted implementation without replacing it.
+- [x] Resolve the failing turret-clearance regression using generated barrel geometry.
+- [x] Address independent review findings and verify mesh, breakup, flooding, and hazards.
+- [x] Inspect the grouped picker and each warship category in WebGL, including sinking.
+- [x] Update release metadata and roster documentation; run tests and production build.
+- [x] Record final verification evidence and review results.
+
+Scope: retain the seven liners, add the existing 20 WWII warships across seven navies, and meet issue #5 acceptance criteria. Submarines flood and sink; manual diving remains future work.
+
+## Issue #5 review
+
+Implemented 20 warships across seven navies, including three carriers and US/German/Japanese submarines. All 27 ships own a silhouette profile and appear once in the category-grouped picker. Warships share the existing hull/funnel helpers and keep their topside builders in `warshipMesh.js`; no dependencies were added.
+
+Verification:
+
+- `npm test` passes mesh invariants, real superfiring barrel clearance, flight-deck/island placement, submarine casing/tower checks, whole-mount conservation through breakup for every warship, mine sinking/seabed stability, armour behavior, and hazard hit/avoid checks across hull sizes.
+- `BUILD_DATE='29 Sep 2026' npm run build` passes with verified `v1.2.0 · 29 Sep 2026` metadata. The existing large-bundle advisory remains. `git diff --check` passes.
+- Isolated headless Chrome renders all 27 ships in WebGL2 and shows six picker groups. Screenshots cover each new category, all three carriers/submarines, and Iowa flooding/wreck. [Screenshot contact sheet](screenshots/issue-5/fleet-contact.jpg).
+- Browser simulation steps accelerated Iowa, Essex, Fletcher, and U-boat through mine flooding and breakup; each displayed “On the bottom” with the rendered split state. No JavaScript exceptions or shader errors; the browser logged the existing missing favicon request.
+- Independent review identified and resolved Fubuki duplicating a torpedo mount at the exact break boundary, Yamato secondary guns intersecting neighbouring turret roofs, and Akagi's flight deck lacking hull overhang. Clearance tests now measure actual barrel bounds; submarine freeboard is measured amidships rather than at the raised bow.
+
+Manual dive/surface controls remain outside the issue's minimum scope. Release metadata is prepared; production deployment is not part of this change.

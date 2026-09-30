@@ -91,12 +91,14 @@ export function openBreaches(state) {
   state.breachesOpened = true;
   const n = state.compartments.length;
   const { breaches, initialImpulse } = state.disaster;
+  // Belt armour and torpedo bulges blunt hits through the side, not a blast inside.
+  const armour = 1 - (state.ship.protection ?? 0) * 0.5;
 
   for (const b of breaches) {
     const idx = Math.min(n - 1, Math.max(0, Math.floor(b.along * n)));
     const c = state.compartments[idx];
     c.open = true;
-    c.breachSize = Math.max(c.breachSize, b.size * (0.6 + b.depth * 0.5));
+    c.breachSize = Math.max(c.breachSize, b.size * (0.6 + b.depth * 0.5) * (b.side ? armour : 1));
     c.sideBias += b.side;
   }
 
@@ -168,7 +170,9 @@ export function stepSimulation(state, dt) {
     state.compartments.length;
 
   const restY = SEABED_Y + ship.draft + 0.3;
-  const sinkT = clamp((floodFrac - 0.38) / 0.62, 0, 1);
+  // A submarine has little reserve buoyancy; a liner absorbs a lot of water first.
+  const reserve = ship.reserveBuoyancy ?? 0.38;
+  const sinkT = clamp((floodFrac - reserve) / (1 - reserve), 0, 1);
   const targetY = sinkT * sinkT * sinkT * restY;
 
   let ay =
@@ -245,7 +249,8 @@ export function stepSimulation(state, dt) {
   }
 
   if (state.breachesOpened && !state.broken) {
-    const sag = Math.abs(state.rotation.pitch);
+    // A stiffer hull girder (strength > 1) takes more hogging before it goes.
+    const sag = Math.abs(state.rotation.pitch) / (ship.strength ?? 1);
     if (
       (floodFrac > 0.72 && sag > 0.18) ||
       (floodFrac > 0.58 && sag > 0.42) ||

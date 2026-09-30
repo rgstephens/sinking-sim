@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { SHIPS, getShip } from "./ships.js";
+import * as THREE from "three";
+import { SHIPS, getShip, shipGroups, CATEGORIES } from "./ships.js";
 import { getDisaster } from "./disasters.js";
 import {
   createSimulation,
@@ -11,7 +12,7 @@ import {
   starboardDirection,
 } from "./physics.js";
 import { createHazard, updateHazard } from "./hazards.js";
-import { buildShipMesh, splitShip } from "./shipMesh.js";
+import { buildShipMesh, splitShip, shipStyle, BREAK_FRACTION } from "./shipMesh.js";
 import {
   ENGINE_ORDERS,
   WHEEL_HARD_OVER,
@@ -116,13 +117,17 @@ function hullBreadths(ship, stationIndex) {
   const uv = hullMesh.geometry.attributes.uv;
   const targetU = stationIndex / 72;
   let deck = 0;
+  let deckY = -Infinity;
   let waterline = 0;
   let waterlineDelta = Infinity;
 
   for (let i = 0; i < pos.count; i++) {
     if (Math.abs(uv.getX(i) - targetU) > 1e-6) continue;
     const halfBreadth = Math.abs(pos.getZ(i));
-    if (uv.getY(i) >= 0.84) deck = Math.max(deck, halfBreadth);
+    if (uv.getY(i) >= 0.84) {
+      deck = Math.max(deck, halfBreadth);
+      deckY = Math.max(deckY, pos.getY(i));
+    }
     const delta = Math.abs(pos.getY(i));
     if (delta < waterlineDelta - 1e-6) {
       waterlineDelta = delta;
@@ -132,7 +137,7 @@ function hullBreadths(ship, stationIndex) {
     }
   }
 
-  return { deck, waterline };
+  return { deck, deckY, waterline };
 }
 
 for (const ship of SHIPS) {
@@ -163,6 +168,21 @@ for (const ship of SHIPS) {
     shoulder.deck / midship.deck > 0.75,
     `${ship.id} holds deck breadth through the forward tenth (${shoulder.deck / midship.deck})`,
   );
+  for (const name of ["position", "normal"]) {
+    const attribute = hullMesh.geometry.attributes[name];
+    for (let i = 0; i < attribute.array.length; i++) {
+      assert.ok(Number.isFinite(attribute.array[i]), `${ship.id} ${name} ${i} is finite`);
+    }
+  }
+  let priorDeck = -Infinity;
+  for (let station = 0; station <= 14; station++) {
+    const breadth = hullBreadths(ship, station).deck;
+    assert.ok(
+      breadth + midship.deck * 0.025 >= priorDeck,
+      `${ship.id} entrance has no abrupt reversal at station ${station} (${breadth} < ${priorDeck})`,
+    );
+    priorDeck = breadth;
+  }
   assert.ok(deckOverlay?.isMesh, `${ship.id} exposes its teak deck overlay for geometry checks`);
   const deckPositions = deckOverlay.geometry.attributes.position;
   assert.ok(
@@ -175,6 +195,7 @@ for (const ship of SHIPS) {
     `${ship.id} teak stem has a valid surface normal`,
   );
   assert.ok(rigging?.isLineSegments, `${ship.id} has rigging geometry`);
+  if (ship.category === "carrier") continue; // no forestay over a flight deck
   const riggingPositions = rigging.geometry.attributes.position;
   let stemDeckX = Infinity;
   let stemDeckY = -Infinity;
@@ -196,22 +217,6 @@ for (const ship of SHIPS) {
   );
   assert.ok(Math.abs(riggingPositions.getZ(0)) < 1e-6, `${ship.id} forestay starts on centerline`);
 
-  let priorDeck = -Infinity;
-  for (let station = 0; station <= 14; station++) {
-    const breadth = hullBreadths(ship, station).deck;
-    assert.ok(
-      breadth + midship.deck * 0.025 >= priorDeck,
-      `${ship.id} entrance has no abrupt reversal at station ${station} (${breadth} < ${priorDeck})`,
-    );
-    priorDeck = breadth;
-  }
-
-  for (const name of ["position", "normal"]) {
-    const attribute = hullMesh.geometry.attributes[name];
-    for (let i = 0; i < attribute.array.length; i++) {
-      assert.ok(Number.isFinite(attribute.array[i]), `${ship.id} ${name} ${i} is finite`);
-    }
-  }
 }
 
 const nomadicForward = hullBreadths(getShip("nomadic"), 3);
@@ -283,6 +288,191 @@ const sternHalf = countX(parts.stern, (x) => x > -2);
 assert.ok(bowHalf.n > 0 && sternHalf.n > 0, "both halves keep hull geometry");
 assert.ok(bowHalf.bad < 20, `bow half leaked stern vertices (${bowHalf.bad})`);
 assert.ok(sternHalf.bad < 20, `stern half leaked bow vertices (${sternHalf.bad})`);
+
+// --- WWII warships (issue #5) ---
+
+const warships = SHIPS.filter((s) => s.category !== "liner");
+const byCategory = (c) => warships.filter((s) => s.category === c);
+const navies = new Set(warships.map((s) => s.navy));
+assert.ok(warships.length >= 12, `at least 12 warships (${warships.length})`);
+for (const navy of ["USN", "RN", "KM", "IJN", "RM", "MN"]) {
+  assert.ok(navies.has(navy), `roster includes the ${navy}`);
+}
+const subNavies = new Set(byCategory("submarine").map((s) => s.navy));
+assert.ok(byCategory("submarine").length >= 3, "at least three submarines");
+for (const navy of ["USN", "KM", "IJN"]) assert.ok(subNavies.has(navy), `${navy} submarine`);
+assert.equal(new Set(SHIPS.map((s) => s.id)).size, SHIPS.length, "ship ids are unique");
+
+// Picker: every ship appears once, in a known category group, liners first.
+const groups = shipGroups();
+assert.equal(groups[0].id, "liner", "liners lead the picker");
+assert.equal(groups[0].ships[0].id, "titanic", "Titanic stays the default ship");
+assert.deepEqual(
+  groups.flatMap((g) => g.ships.map((s) => s.id)).sort(),
+  SHIPS.map((s) => s.id).sort(),
+  "every ship is in exactly one picker group",
+);
+for (const s of SHIPS) {
+  assert.ok(CATEGORIES.some((c) => c.id === s.category), `${s.id} has a known category`);
+}
+
+const named = (root, name) => {
+  const out = [];
+  root.traverse((o) => {
+    if (o.name === name) out.push(o);
+  });
+  return out;
+};
+const worldBox = (o) => new THREE.Box3().setFromObject(o);
+
+for (const ship of SHIPS) {
+  const style = shipStyle(ship);
+  assert.ok(style.own, `${ship.id} has its own silhouette style (no Titanic fallback)`);
+  const { root } = shipMeshes(ship);
+  const turrets = named(root, "turret");
+  const funnels = named(root, "funnel");
+
+  if (ship.category === "liner") {
+    assert.equal(turrets.length, 0, `${ship.id} is unarmed`);
+    continue;
+  }
+  assert.ok(root.userData.boatDeck, `${ship.id} records a superstructure extent for reflections`);
+  const deckTop = root.userData.boatDeck.y;
+  assert.ok(Number.isFinite(deckTop) && deckTop > 0, `${ship.id} topsides stand above the waterline`);
+
+  if (["battleship", "cruiser", "destroyer"].includes(ship.category)) {
+    assert.ok(ship.turrets?.length >= 2, `${ship.id} carries a main battery`);
+    assert.ok(turrets.length >= ship.turrets.length, `${ship.id} renders every main turret`);
+    assert.equal(funnels.length, ship.funnels, `${ship.id} funnel count`);
+    // Main turrets sit on the ship, inside her length and above her deck.
+    for (const t of ship.turrets) {
+      const x = (t.along - 0.5) * ship.length;
+      const mount = turrets.find((g) => Math.abs(g.position.x - x) < 1e-6 && Math.abs(g.position.z - (t.z ?? 0) * ship.beam * 0.5) < 1e-6);
+      assert.ok(mount, `${ship.id} turret at ${t.along} is placed from ship data`);
+      assert.ok(mount.position.y > 0.2, `${ship.id} turret at ${t.along} stands on deck`);
+      // Barrels point the way the turret faces: fore turrets toward the bow.
+      const facing = t.facing ?? (t.along < 0.5 ? "fore" : "aft");
+      const box = worldBox(mount);
+      const reach = facing === "fore" ? mount.position.x - box.min.x : box.max.x - mount.position.x;
+      assert.ok(reach > t.size * 0.9, `${ship.id} turret at ${t.along} trains ${facing}`);
+    }
+    // Superfiring turrets clear the turret they fire over.
+    const main = [...ship.turrets].filter((t) => !t.z).sort((a, b) => a.along - b.along);
+    for (let i = 1; i < main.length; i++) {
+      const [a, b] = [main[i - 1], main[i]];
+      const hi = a.along < 0.5 ? b : a;
+      const lo = a.along < 0.5 ? a : b;
+      if (!hi.superfire || Math.abs(a.along - b.along) > 0.12) continue;
+      const mounts = [lo, hi].map((t) => turrets.find((g) => Math.abs(g.position.x - (t.along - 0.5) * ship.length) < 1e-6));
+      const loTop = worldBox(mounts[0]).max.y;
+      const barrels = named(mounts[1], "gun-barrel");
+      assert.equal(barrels.length, hi.count, `${ship.id} superfiring barrel count`);
+      const hiBottom = Math.min(...barrels.map((b) => worldBox(b).min.y));
+      assert.ok(hiBottom > loTop, `${ship.id} superfiring turret at ${hi.along} clears ${lo.along}`);
+    }
+  }
+
+  if (ship.category === "carrier") {
+    const deck = named(root, "flight-deck");
+    assert.ok(deck.length >= 1, `${ship.id} has a flight deck`);
+    const box = deck.map(worldBox).reduce((a, b) => a.union(b));
+    assert.ok(box.max.x - box.min.x > ship.length * 0.85, `${ship.id} flight deck runs nearly full length`);
+    assert.ok(box.max.z - box.min.z > ship.beam, `${ship.id} flight deck overhangs the hull`);
+    const island = named(root, "island")[0];
+    assert.ok(island, `${ship.id} has an island`);
+    const side = shipStyle(ship).island.side;
+    assert.ok(Math.sign(island.position.z) === side, `${ship.id} island on the ${side > 0 ? "starboard" : "port"} side`);
+    assert.ok(island.position.y >= box.max.y - 0.01, `${ship.id} island stands on the flight deck`);
+  }
+
+  if (ship.category === "submarine") {
+    const tower = named(root, "conning-tower")[0];
+    assert.ok(tower, `${ship.id} has a conning tower`);
+    assert.equal(funnels.length, 0, `${ship.id} has no funnels`);
+    assert.equal(turrets.length, 1, `${ship.id} carries one deck gun`);
+    const hull = shipHull(ship);
+    hull.geometry.computeBoundingBox();
+    const hb = hull.geometry.boundingBox;
+    const casingY = hullBreadths(ship, 36).deckY;
+    assert.ok(casingY < ship.length * 0.04, `${ship.id} rides low amidships: casing ${casingY}`);
+    assert.ok(worldBox(tower).max.y > hb.max.y + 0.2, `${ship.id} tower stands proud of the casing`);
+    // Saddle tanks: the hull is widest below the waterline, not at the deck.
+    const mid = hullBreadths(ship, 36);
+    assert.ok(mid.deck < ship.beam * 0.45, `${ship.id} casing narrower than the pressure hull`);
+  }
+}
+
+// Every silhouette is distinct: no two ships share size and armament layout.
+const signature = (s) =>
+  [s.length, s.beam, s.funnels, s.category, (s.turrets ?? []).map((t) => `${t.along}:${t.count}`).join(",")].join("|");
+assert.equal(new Set(SHIPS.map(signature)).size, SHIPS.length, "each ship has a distinct silhouette");
+
+// Breakup hands each turret, tower and island to exactly one half.
+for (const ship of warships) {
+  const { id } = ship;
+  const root = buildShipMesh(ship);
+  const count = (r) => ["turret", "bridge", "island", "conning-tower"].reduce((n, name) => n + named(r, name).length, 0);
+  const whole = count(root);
+  const { bow, stern } = splitShip(root);
+  assert.equal(count(bow) + count(stern), whole, `${id} keeps every mount through the break`);
+  const breakX = ship.length * BREAK_FRACTION;
+  for (const g of named(bow, "turret")) assert.ok(g.position.x <= breakX, `${id} bow half keeps only forward mounts`);
+  for (const g of named(stern, "turret")) assert.ok(g.position.x > breakX, `${id} stern half keeps only aft mounts`);
+}
+
+// Flooding: every warship floods, settles on the bottom, and stays there.
+const sinkTime = {};
+for (const ship of warships) {
+  const s = createSimulation(ship);
+  triggerDisaster(s, getDisaster("mine"));
+  let t = 0;
+  for (; t < 12000 && !s.onSeabed; t++) stepSimulation(s, 0.05);
+  assert.ok(s.onSeabed, `${ship.id} sinks to the sea floor after a mine`);
+  assert.ok(s.position.y >= SEABED_Y, `${ship.id} does not fall through the sea floor`);
+  let maxY = -Infinity;
+  for (let i = 0; i < 200; i++) {
+    stepSimulation(s, 0.05);
+    maxY = Math.max(maxY, s.position.y);
+  }
+  assert.ok(maxY <= MAX_FLOAT_Y + 1e-6, `${ship.id} never leaves the water`);
+  sinkTime[ship.id] = t;
+}
+// A submarine has little reserve buoyancy; an armoured battleship lasts longer.
+assert.ok(sinkTime["u-boat"] < sinkTime.fletcher, `U-boat ${sinkTime["u-boat"]} sinks before Fletcher ${sinkTime.fletcher}`);
+assert.ok(sinkTime.yamato > sinkTime.fletcher, `Yamato ${sinkTime.yamato} outlasts Fletcher ${sinkTime.fletcher}`);
+
+// Armour blunts side hits but not an internal blast.
+const breach = (id, disaster) => {
+  const s = createSimulation(getShip(id));
+  triggerDisaster(s, getDisaster(disaster));
+  return Math.max(...s.compartments.map((c) => c.breachSize));
+};
+assert.ok(breach("yamato", "mine") < breach("fletcher", "mine") * 0.7, "belt armour shrinks a mine breach");
+assert.equal(breach("yamato", "boiler"), breach("fletcher", "boiler"), "armour does not help against a boiler blast");
+
+// Hazards reach the bow of the shortest and longest hulls alike.
+for (const id of ["u-boat", "fletcher", "yamato", "essex"]) {
+  const straight = createSimulation(getShip(id));
+  straight.throttle = 0.7;
+  straight.speed = 5;
+  const mine = createHazard(straight, getDisaster("mine"), () => 0);
+  for (let i = 0; i < 400 && !mine.resolved; i++) {
+    stepSimulation(straight, 0.05);
+    updateHazard(straight, mine, 0.05);
+  }
+  assert.equal(mine.outcome, "hit", `${id} holding course strikes a mine on the track`);
+
+  const dodge = createSimulation(getShip(id));
+  dodge.helm = 1;
+  dodge.throttle = 0.7;
+  dodge.speed = 5;
+  const ice = createHazard(dodge, getDisaster("iceberg"), () => 0);
+  for (let i = 0; i < 500 && !ice.resolved; i++) {
+    stepSimulation(dodge, 0.05);
+    updateHazard(dodge, ice, 0.05);
+  }
+  assert.equal(ice.outcome, "avoided", `${id} hard turn clears the iceberg`);
+}
 
 // --- Bridge controls (issue #11) ---
 
