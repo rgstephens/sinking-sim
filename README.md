@@ -26,7 +26,7 @@ The production image is published as `registry.gstephens.org/sinking-sim:<versio
 
 ## Play
 
-1. Choose a ship and an atmosphere.
+1. Choose a ship and an atmosphere. The category groups include seven ocean liners and 20 WWII warships from the US, Britain, Germany, Japan, Italy, France, and the Soviet Union. Battleships, cruisers, and destroyers carry gun batteries; carriers have flight decks and islands; Gato, Type VII, and I-15 submarines have conning towers and deck guns.
 2. Click **Get Underway**. The ship is already steaming.
 3. Steer with the ship's wheel in the lower left: drag it round and it stays where you leave it. About half a turn either way is hard over; double-click puts it back amidships. Order speed with the engine telegraph in the lower right: drag the handle to an order from Full astern to Full ahead, and the small pointer shows the engines answering. The keys still work: holding `A` / `D` (or the arrow keys) puts the rudder hard over until you let go, and `W` / `S` step the telegraph one order at a time, or sweep it if held.
 4. A hazard shows up at random — iceberg, mine, wave, or a boiler running hot. The banner tells you which way to turn, or to cut throttle. Miss it and another one comes. Hit it and the ship floods, lists, and goes down.
@@ -39,6 +39,7 @@ The speed slider runs from pause (`0`) through `4×`. **Space** toggles pause. `
 - `sky.js` — Preetham sky with drifting clouds, plus an overcast cloud deck for Storm and Overcast Fog. It also captures the environment maps used for reflections and image-based lighting.
 - `water.js` — ocean that reaches the horizon: 8 Gerstner waves, ripple normal maps, whitecaps, sun glitter, bow and Kelvin wake, a mirror image of the ship, refraction of anything under the surface, and Snell's window from below.
 - `shipMesh.js` — lofted hull with a raked stem and counter stern. The hull shader paints antifouling, boot-top, sheer line, portholes and weathering. Also builds the windowed superstructure, raked funnels, davits, rigging and hospital livery.
+- `warshipMesh.js` — navy silhouettes, superfiring turrets, bridge towers and pagoda masts, carrier flight decks and islands, and submarine conning towers and dive planes. Armoured hulls reduce side breaches and resist breakup; submarines have less reserve buoyancy and flood and sink like the rest of the fleet.
 - `effects.js` — coal smoke, fire, spray and bubble particles.
 - `scene.js` — HDR multisampled render, refraction pass, bloom keyed to exposure, vignette and grade, seabed, iceberg and tsunami meshes.
 - `atmosphere.js` — one table per preset: sun, sky, clouds, exposure, bloom, water colour, sea state and window glow.

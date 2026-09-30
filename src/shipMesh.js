@@ -1,8 +1,10 @@
 import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import { WARSHIP_STYLES, CATEGORY_STYLES, buildWarship } from "./warshipMesh.js";
 
 /**
- * High-detail procedural ocean liners.
+ * High-detail procedural ships: ocean liners here, warship topsides in
+ * warshipMesh.js on the same lofted hull.
  * Hull is a lofted station mesh (bow → stern) with ship-specific profiles.
  * Paint (antifouling, boot-top, sheer line, hospital livery), portholes,
  * hawse pipes and weathering are drawn by a hull shader in the ship's own
@@ -43,20 +45,25 @@ export function buildShipMesh(ship) {
   const deck = buildDeck(ship, style, mats.deck);
   root.add(deck);
 
-  // Superstructure blocks (multi-deck)
-  buildSuperstructure(root, ship, style, mats);
+  if (isWarship(ship)) {
+    // Turrets, towers, flight decks and conning towers
+    buildWarship(root, ship, style, mats, warshipKit(ship, style, mats));
+  } else {
+    // Superstructure blocks (multi-deck)
+    buildSuperstructure(root, ship, style, mats);
 
-  // Funnels
-  buildFunnels(root, ship, style, mats);
+    // Funnels
+    buildFunnels(root, ship, style, mats);
 
-  // Masts + rigging
-  buildMasts(root, ship, style, mats);
+    // Masts + rigging
+    buildMasts(root, ship, style, mats);
 
-  // Lifeboats along boat deck
-  buildLifeboats(root, ship, style, mats);
+    // Lifeboats along boat deck
+    buildLifeboats(root, ship, style, mats);
+  }
 
-  // Railings
-  buildRailings(root, ship, style, mats);
+  // Railings (a submarine's casing has none)
+  if (style.hullForm !== "submarine") buildRailings(root, ship, style, mats);
 
   // Propellers / rudder under stern
   buildSternGear(root, ship, style, mats);
@@ -73,6 +80,7 @@ export function buildShipMesh(ship) {
   root.position.y = 0;
 
   root.userData = {
+    ...root.userData, // boatDeck, set by the topside builders
     ship,
     waterVolumes,
     damageGroup,
@@ -95,133 +103,144 @@ export function setShipLights(root, amount) {
   });
 }
 
-function shipStyle(ship) {
-  // Per-ship silhouette knobs
-  const map = {
-    titanic: {
-      bowFine: 0.94,
-      bowRake: 0.062,
-      sternFine: 0.55,
-      sheer: 0.08,
-      camber: 0.04,
-      flare: 0.35,
-      funnelSpread: 0.32,
-      funnelStart: -0.06,
-      funnelRake: 0.1,
-      funnelEllipse: 0.78,
-      superLen: 0.58,
-      superOffset: 0.0,
-      decks: 3,
-      boatDeckY: 0.72,
-      bowType: "olympic",
-      portholeRows: 3,
-    },
-    britannic: {
-      bowFine: 0.93,
-      bowRake: 0.06,
-      sternFine: 0.55,
-      sheer: 0.08,
-      camber: 0.04,
-      flare: 0.34,
-      funnelSpread: 0.33,
-      funnelStart: -0.05,
-      funnelRake: 0.1,
-      funnelEllipse: 0.78,
-      superLen: 0.58,
-      superOffset: 0.0,
-      decks: 3,
-      boatDeckY: 0.72,
-      bowType: "olympic",
-      portholeRows: 3,
-    },
-    nomadic: {
-      bowFine: 0.72,
-      bowRake: 0.028,
-      sternFine: 0.65,
-      sheer: 0.05,
-      camber: 0.03,
-      flare: 0.2,
-      funnelSpread: 0.0,
-      funnelStart: 0.05,
-      funnelRake: 0.06,
-      superLen: 0.45,
-      superOffset: -0.02,
-      decks: 2,
-      boatDeckY: 0.55,
-      bowType: "blunt",
-      portholeRows: 2,
-    },
-    "queen-elizabeth": {
-      bowFine: 0.9,
-      bowRake: 0.078,
-      sternFine: 0.5,
-      sheer: 0.1,
-      camber: 0.05,
-      flare: 0.4,
-      funnelSpread: 0.18,
-      funnelStart: 0.02,
-      funnelRake: 0.05,
-      superLen: 0.62,
-      superOffset: -0.02,
-      decks: 4,
-      boatDeckY: 0.78,
-      bowType: "raked",
-      portholeRows: 4,
-    },
-    lusitania: {
-      bowFine: 0.97,
-      bowRake: 0.072,
-      sternFine: 0.5,
-      sheer: 0.09,
-      camber: 0.04,
-      flare: 0.38,
-      funnelSpread: 0.3,
-      funnelStart: -0.08,
-      funnelRake: 0.1,
-      superLen: 0.56,
-      superOffset: 0.0,
-      decks: 3,
-      boatDeckY: 0.7,
-      bowType: "fine",
-      portholeRows: 3,
-    },
-    "andrea-doria": {
-      bowFine: 0.93,
-      bowRake: 0.09,
-      sternFine: 0.45,
-      sheer: 0.07,
-      camber: 0.045,
-      flare: 0.42,
-      funnelSpread: 0.0,
-      funnelStart: 0.12,
-      funnelRake: 0.14,
-      superLen: 0.55,
-      superOffset: 0.02,
-      decks: 4,
-      boatDeckY: 0.75,
-      bowType: "modern",
-      portholeRows: 4,
-    },
-    empress: {
-      bowFine: 0.88,
-      bowRake: 0.05,
-      sternFine: 0.55,
-      sheer: 0.07,
-      camber: 0.035,
-      flare: 0.3,
-      funnelSpread: 0.2,
-      funnelStart: -0.02,
-      funnelRake: 0.08,
-      superLen: 0.52,
-      superOffset: 0.0,
-      decks: 2,
-      boatDeckY: 0.65,
-      bowType: "edwardian",
-      portholeRows: 2,
-    },
-  };
-  return { funnelEllipse: 0.88, funnelRake: 0.08, ...(map[ship.id] ?? map.titanic) };
+function isWarship(ship) {
+  return Boolean(ship.category) && ship.category !== "liner";
 }
+
+/**
+ * Silhouette knobs: category defaults overlaid with the ship's own entry.
+ * `own` is false only for a ship nobody has drawn yet (it gets the defaults).
+ */
+export function shipStyle(ship) {
+  const own = LINER_STYLES[ship.id] ?? WARSHIP_STYLES[ship.id];
+  const base = isWarship(ship) ? CATEGORY_STYLES[ship.category] : LINER_STYLES.titanic;
+  return { funnelEllipse: 0.88, funnelRake: 0.08, ...base, ...own, own: Boolean(own) };
+}
+
+// Per-liner silhouette knobs
+const LINER_STYLES = {
+  titanic: {
+    bowFine: 0.94,
+    bowRake: 0.062,
+    sternFine: 0.55,
+    sheer: 0.08,
+    camber: 0.04,
+    flare: 0.35,
+    funnelSpread: 0.32,
+    funnelStart: -0.06,
+    funnelRake: 0.1,
+    funnelEllipse: 0.78,
+    superLen: 0.58,
+    superOffset: 0.0,
+    decks: 3,
+    boatDeckY: 0.72,
+    bowType: "olympic",
+    portholeRows: 3,
+  },
+  britannic: {
+    bowFine: 0.93,
+    bowRake: 0.06,
+    sternFine: 0.55,
+    sheer: 0.08,
+    camber: 0.04,
+    flare: 0.34,
+    funnelSpread: 0.33,
+    funnelStart: -0.05,
+    funnelRake: 0.1,
+    funnelEllipse: 0.78,
+    superLen: 0.58,
+    superOffset: 0.0,
+    decks: 3,
+    boatDeckY: 0.72,
+    bowType: "olympic",
+    portholeRows: 3,
+  },
+  nomadic: {
+    bowFine: 0.72,
+    bowRake: 0.028,
+    sternFine: 0.65,
+    sheer: 0.05,
+    camber: 0.03,
+    flare: 0.2,
+    funnelSpread: 0.0,
+    funnelStart: 0.05,
+    funnelRake: 0.06,
+    superLen: 0.45,
+    superOffset: -0.02,
+    decks: 2,
+    boatDeckY: 0.55,
+    bowType: "blunt",
+    portholeRows: 2,
+  },
+  "queen-elizabeth": {
+    bowFine: 0.9,
+    bowRake: 0.078,
+    sternFine: 0.5,
+    sheer: 0.1,
+    camber: 0.05,
+    flare: 0.4,
+    funnelSpread: 0.18,
+    funnelStart: 0.02,
+    funnelRake: 0.05,
+    superLen: 0.62,
+    superOffset: -0.02,
+    decks: 4,
+    boatDeckY: 0.78,
+    bowType: "raked",
+    portholeRows: 4,
+  },
+  lusitania: {
+    bowFine: 0.97,
+    bowRake: 0.072,
+    sternFine: 0.5,
+    sheer: 0.09,
+    camber: 0.04,
+    flare: 0.38,
+    funnelSpread: 0.3,
+    funnelStart: -0.08,
+    funnelRake: 0.1,
+    superLen: 0.56,
+    superOffset: 0.0,
+    decks: 3,
+    boatDeckY: 0.7,
+    bowType: "fine",
+    portholeRows: 3,
+  },
+  "andrea-doria": {
+    bowFine: 0.93,
+    bowRake: 0.09,
+    sternFine: 0.45,
+    sheer: 0.07,
+    camber: 0.045,
+    flare: 0.42,
+    funnelSpread: 0.0,
+    funnelStart: 0.12,
+    funnelRake: 0.14,
+    superLen: 0.55,
+    superOffset: 0.02,
+    decks: 4,
+    boatDeckY: 0.75,
+    bowType: "modern",
+    portholeRows: 4,
+  },
+  empress: {
+    bowFine: 0.88,
+    bowRake: 0.05,
+    sternFine: 0.55,
+    sheer: 0.07,
+    camber: 0.035,
+    flare: 0.3,
+    funnelSpread: 0.2,
+    funnelStart: -0.02,
+    funnelRake: 0.08,
+    superLen: 0.52,
+    superOffset: 0.0,
+    decks: 2,
+    boatDeckY: 0.65,
+    bowType: "edwardian",
+    portholeRows: 2,
+  },
+};
 
 // --- Procedural textures (browser only; the node tests build meshes too) ---
 
@@ -316,11 +335,113 @@ function windowTextures(modern) {
   });
 }
 
-function plankTexture() {
-  return cachedTexture("planks", () => {
+/** Teak planking; `painted` is a neutral grey version for a tinted deck. */
+/**
+ * Warship bulkheads: grey plating with a few scuttles and weathering, one
+ * texture = BAYS bays wide × one deck tall. Darkened ship — nothing glows.
+ */
+function navalTexture() {
+  return cachedTexture("naval", () => {
+    const W = 512;
+    const H = 128;
+    const [c, g] = canvas(W, H);
+    g.fillStyle = "#eef0f0";
+    g.fillRect(0, 0, W, H);
+    // Plate seams and a darker splash line at the deck
+    g.fillStyle = "rgba(60,64,66,0.18)";
+    for (let x = 0; x < W; x += 128) g.fillRect(x, 0, 1.5, H);
+    g.fillRect(0, H * 0.5, W, 1);
+    const grime = g.createLinearGradient(0, H * 0.75, 0, H);
+    grime.addColorStop(0, "rgba(70,70,68,0)");
+    grime.addColorStop(1, "rgba(70,70,68,0.3)");
+    g.fillStyle = grime;
+    g.fillRect(0, H * 0.75, W, H * 0.25);
+    let seed = 23;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    for (let i = 0; i < BAYS; i++) {
+      const x = (i + 0.5) * (W / BAYS);
+      if (rnd() < 0.35) {
+        // Watertight door
+        g.fillStyle = "rgba(40,44,46,0.55)";
+        g.fillRect(x - 12, H * 0.28, 24, H * 0.66);
+        g.fillStyle = "rgba(230,232,232,0.35)";
+        g.fillRect(x - 12, H * 0.28, 24, 2);
+        continue;
+      }
+      for (const dx of [-26, 26]) {
+        if (rnd() < 0.4) continue;
+        g.fillStyle = "#5c6164";
+        g.beginPath();
+        g.arc(x + dx, H * 0.4, 7, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = "#1a1e22";
+        g.beginPath();
+        g.arc(x + dx, H * 0.4, 5, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = `rgba(110,75,50,${0.1 + rnd() * 0.15})`;
+        g.fillRect(x + dx - 1, H * 0.46, 2, H * 0.3);
+      }
+    }
+    return finishTexture(c);
+  });
+}
+
+/**
+ * Flight deck, u along the ship (one tile = FLIGHT_TILE units), v across the
+ * full width: planks, tie-down strips, edge lines and a dashed centreline.
+ */
+export const FLIGHT_TILE = 6;
+function flightDeckTexture(base, centreline) {
+  return cachedTexture(`flight-${base}-${centreline}`, () => {
+    const W = 1024;
+    const H = 256;
+    const [c, g] = canvas(W, H);
+    const col = new THREE.Color(base);
+    const rgb = (k) => `rgb(${[col.r, col.g, col.b].map((v) => Math.round(Math.min(1, v * k) * 255)).join(",")})`;
+    g.fillStyle = rgb(1);
+    g.fillRect(0, 0, W, H);
+    let seed = 41;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    // Planks run fore and aft
+    for (let y = 0; y < H; y += 4) {
+      let x = -rnd() * 200;
+      while (x < W) {
+        const len = 120 + rnd() * 200;
+        g.fillStyle = rgb(0.9 + rnd() * 0.2);
+        g.fillRect(x, y, len, 4);
+        g.fillStyle = "rgba(0,0,0,0.18)";
+        g.fillRect(x, y, 1, 4);
+        x += len;
+      }
+      g.fillStyle = "rgba(0,0,0,0.12)";
+      g.fillRect(0, y, W, 0.7);
+    }
+    // Steel tie-down strips across the deck
+    g.fillStyle = "rgba(40,40,40,0.35)";
+    for (let x = 0; x < W; x += W / 5) g.fillRect(x, 0, 2, H);
+    // Tyre marks and oil down the middle
+    for (let i = 0; i < 40; i++) {
+      g.fillStyle = `rgba(20,20,20,${0.04 + rnd() * 0.06})`;
+      g.fillRect(rnd() * W, H * (0.3 + rnd() * 0.4), 60 + rnd() * 200, 2 + rnd() * 3);
+    }
+    g.fillStyle = "rgba(235,235,225,0.9)";
+    g.fillRect(0, H * 0.035, W, 3);
+    g.fillRect(0, H * 0.965 - 3, W, 3);
+    if (centreline) {
+      for (let x = 0; x < W; x += W / 4) g.fillRect(x, H * 0.5 - 2, W / 8, 4);
+    }
+    const tex = finishTexture(c);
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    return tex;
+  });
+}
+
+function plankTexture(painted = false) {
+  return cachedTexture(`planks-${painted}`, () => {
     const S = 256;
     const [c, g] = canvas(S, S);
-    g.fillStyle = "#a88a62";
+    const tone = painted ? [218, 218, 218] : [168, 138, 98];
+    g.fillStyle = `rgb(${tone.join(",")})`;
     g.fillRect(0, 0, S, S);
     let seed = 3;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -330,8 +451,8 @@ function plankTexture() {
       let x = -rnd() * S * 0.5;
       while (x < S) {
         const len = S * (0.35 + rnd() * 0.4);
-        const v = 0.85 + rnd() * 0.3;
-        g.fillStyle = `rgb(${Math.round(168 * v)},${Math.round(138 * v)},${Math.round(98 * v)})`;
+        const v = painted ? 0.93 + rnd() * 0.1 : 0.85 + rnd() * 0.3;
+        g.fillStyle = `rgb(${tone.map((t) => Math.min(255, Math.round(t * v))).join(",")})`;
         g.fillRect(x, j * h, len, h);
         g.fillStyle = "rgba(40,30,20,0.55)";
         g.fillRect(x, j * h, 1.5, h);
@@ -410,25 +531,28 @@ function makeMaterials(ship, style) {
   });
   paintHull(hull, ship, style);
 
+  const steelDeck = ship.deck === "steel";
   const deck = new THREE.MeshStandardMaterial({
-    color: 0xffffff,
-    map: plankTexture(),
-    roughness: 0.85,
-    metalness: 0.0,
+    color: ship.deckColor ?? (steelDeck ? 0x5c6166 : 0xffffff),
+    map: steelDeck ? null : plankTexture(ship.deckColor != null),
+    roughness: steelDeck ? 0.8 : 0.85,
+    metalness: steelDeck ? 0.25 : 0.0,
   });
+  const warship = isWarship(ship);
   const modern = style.bowType === "modern" || style.bowType === "raked";
-  const win = windowTextures(modern);
+  const win = warship ? null : windowTextures(modern);
   const superstructure = new THREE.MeshStandardMaterial({
     color: ship.superstructureColor,
-    map: win?.map ?? null,
+    map: warship ? navalTexture() : (win?.map ?? null),
     roughnessMap: win?.rough ?? null,
     emissiveMap: win?.emissive ?? null,
     emissive: win ? 0xffc890 : 0x000000,
     emissiveIntensity: 0,
-    roughness: 1,
+    roughness: warship ? 0.62 : 1,
     metalness: 0.05,
   });
-  superstructure.userData.glow = 2.2;
+  // Liners light up at dusk; warships steam darkened.
+  if (!warship) superstructure.userData.glow = 2.2;
   const paint = new THREE.MeshStandardMaterial({
     color: ship.superstructureColor,
     roughness: 0.55,
@@ -489,9 +613,31 @@ function makeMaterials(ship, style) {
     metalness: 0.0,
     depthWrite: false,
   });
+  // Topside plating above the hull proper (hangar sides, conning towers)
+  const topside = new THREE.MeshStandardMaterial({
+    color: ship.hullColor,
+    roughness: 0.6,
+    metalness: 0.15,
+  });
+  const gun = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(ship.superstructureColor).multiplyScalar(0.72),
+    roughness: 0.5,
+    metalness: 0.35,
+  });
+  const flightDeck = style.flightDeck
+    ? new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        map: flightDeckTexture(ship.deckColor ?? 0x5c6166, ship.navy !== "IJN"),
+        roughness: 0.82,
+        metalness: 0.05,
+      })
+    : null;
   return {
     hull,
     deck,
+    topside,
+    gun,
+    flightDeck,
     superstructure,
     paint,
     funnel,
@@ -518,6 +664,7 @@ function paintHull(mat, ship, style) {
   const bow = stationShape(0.05, ship, style);
   const rows = style.portholeRows;
   const top = mid.deckY - 0.1;
+  const limber = style.hullForm === "submarine";
   const y0 = 0.12;
   const dy = rows > 1 ? (top - y0) / (rows - 1) : 0;
   const bandLo = mid.deckY * 0.34;
@@ -525,7 +672,7 @@ function paintHull(mat, ship, style) {
 
   const uniforms = {
     uTopside: { value: new THREE.Color(ship.hullColor) },
-    uAntifoul: { value: new THREE.Color(0x6e1e19) },
+    uAntifoul: { value: new THREE.Color(ship.antifoulColor ?? 0x6e1e19) },
     uBoot: { value: new THREE.Color(ship.bootTop ?? 0xffffff) },
     uBootW: { value: ship.bootTop ? 0.06 : 0 },
     uSheer: { value: new THREE.Color(ship.sheerLine ?? 0x000000) },
@@ -537,10 +684,18 @@ function paintHull(mat, ship, style) {
     uCrossX: { value: new THREE.Vector3(-0.22 * L, 0.02 * L, 0.26 * L) },
     uCrossSize: { value: Math.max(0.12, mid.deckY * 0.42) },
     uPort: { value: new THREE.Vector4(rows, y0, dy, 0.018 + ship.beam * 0.002) },
-    uPortSpacing: { value: 0.15 },
+    uPortSpacing: { value: style.portSpacing ?? 0.15 },
     uPortSpan: { value: L * 0.38 },
     uHawse: { value: new THREE.Vector3(bow.x - L * 0.005, bow.deckY - 0.14, 0.045) },
     uGlow: { value: 0 },
+    // Warships steam darkened: scuttles never light up.
+    uPortLit: { value: isWarship(ship) ? 0 : 1 },
+    // USN Measure 22: navy blue from the waterline to the lowest deck line.
+    uCamo: { value: new THREE.Color(ship.measure22 ?? 0x000000) },
+    uCamoTop: { value: ship.measure22 ? mid.deckY * 0.86 : -1e3 },
+    // Submarine free-flooding slots along the casing: (on, y, height, pitch)
+    uLimber: { value: new THREE.Vector4(limber ? 1 : 0, mid.deckY * 0.62, mid.deckY * 0.22, 0.09) },
+    uLimberSpan: { value: L * 0.36 },
   };
   mat.hullUniforms = uniforms;
 
@@ -569,7 +724,9 @@ function paintHull(mat, ship, style) {
         varying vec3 vHullN;
         varying vec2 vHullUv;
         uniform vec3 uTopside, uAntifoul, uBoot, uSheer, uBand, uCross, uCrossX, uHawse;
-        uniform float uBootW, uSheerOn, uHospital, uCrossSize, uPortSpacing, uPortSpan, uGlow;
+        uniform float uBootW, uSheerOn, uHospital, uCrossSize, uPortSpacing, uPortSpan, uGlow, uPortLit, uCamoTop, uLimberSpan;
+        uniform vec3 uCamo;
+        uniform vec4 uLimber;
         uniform vec2 uBandY;
         uniform vec4 uPort;
         float hullHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -592,6 +749,10 @@ function paintHull(mat, ship, style) {
         float plate = hullHash(floor(vec2(hp.x / 0.9, hp.y / 0.2)) + (hp.z > 0.0 ? 17.0 : 0.0));
         paint *= 0.95 + plate * 0.09;
 
+        if (uCamoTop > -100.0) {
+          float camo = 1.0 - smoothstep(uCamoTop - aa, uCamoTop + aa, hp.y);
+          paint = mix(paint, uCamo * (0.95 + plate * 0.09), camo);
+        }
         if (uBootW > 0.0) {
           float boot = smoothstep(wl - aa, wl + aa, hp.y) * (1.0 - smoothstep(wl + uBootW - aa, wl + uBootW + aa, hp.y));
           paint = mix(paint, uBoot, boot);
@@ -644,6 +805,12 @@ function paintHull(mat, ship, style) {
           hullRim = max(hullRim, hw);
           paint = mix(paint, vec3(0.02), hw * 0.9);
         }
+        if (uLimber.x > 0.5 && abs(hp.x) < uLimberSpan && sideFace > 0.5) {
+          float lx = abs(fract(hp.x / uLimber.w) - 0.5) * uLimber.w;
+          float slot = (1.0 - smoothstep(uLimber.w * 0.3 - aa, uLimber.w * 0.3 + aa, lx))
+            * (1.0 - smoothstep(uLimber.z * 0.5 - aa, uLimber.z * 0.5 + aa, abs(hp.y - uLimber.y)));
+          paint = mix(paint, vec3(0.015), slot);
+        }
         paint = mix(paint, vec3(0.3, 0.27, 0.22), hullRim * (1.0 - hullGlass) * 0.5);
         paint = mix(paint, vec3(0.02, 0.025, 0.03), hullGlass);
 
@@ -666,10 +833,10 @@ function paintHull(mat, ship, style) {
       .replace(
         "#include <emissivemap_fragment>",
         `#include <emissivemap_fragment>
-        totalEmissiveRadiance += vec3(1.0, 0.68, 0.36) * hullLit * uGlow * 0.9;`
+        totalEmissiveRadiance += vec3(1.0, 0.68, 0.36) * hullLit * uGlow * uPortLit * 0.9;`
       );
   };
-  mat.customProgramCacheKey = () => "hull-paint-v1";
+  mat.customProgramCacheKey = () => "hull-paint-v2";
 }
 
 /**
@@ -700,6 +867,10 @@ function stationShape(u, ship, style) {
     const typePower = BOW_ENTRANCE_POWER[style.bowType] ?? BOW_ENTRANCE_POWER.olympic;
     const fineTrim = ((style.bowFine ?? 0.9) - 0.9) * 0.35;
     beamScale = Math.pow(ellipse, typePower + fineTrim) * mid;
+  } else if (u > 0.8 && style.sternType === "pointed") {
+    // Submarine tail: tapers to the screws instead of ending in a counter
+    const s = (u - 0.8) / 0.2;
+    beamScale = Math.pow(Math.max(0, 1 - Math.pow(s, 1.5)), 0.9) * mid;
   } else if (u > 0.8) {
     // Counter stern: round in plan, so the deck ends in a full ellipse
     const s = (u - 0.8) / 0.2;
@@ -710,13 +881,18 @@ function stationShape(u, ship, style) {
 
   // Sheer (deck rises toward ends), with a raised forecastle at the bow
   let sheerY =
-    style.sheer * ship.height * (Math.pow(Math.abs(u - 0.5) * 2, 2));
+    style.sheer * ship.height * (Math.pow(Math.abs(u - 0.5) * 2, 2)) * (u > 0.5 ? style.sheerAft ?? 1 : 1);
   if (u < 0.2) sheerY += ship.height * 0.07 * Math.pow(1 - u / 0.2, 1.35);
+  // Raised forecastle: the weather deck steps down at `to`
+  if (style.forecastle) {
+    const { to, rise } = style.forecastle;
+    sheerY += rise * (1 - THREE.MathUtils.smoothstep(u, to - 0.007, to + 0.007));
+  }
 
   // Keel depth slightly less at ends
   // The counter overhangs: the keel sweeps up toward the waterline aft.
-  const counter = THREE.MathUtils.smoothstep(u, 0.88, 1.0);
-  const keelDepth = draft * (0.75 + 0.25 * Math.sin(Math.PI * u)) * (1 - counter * 0.85);
+  const counter = THREE.MathUtils.smoothstep(u, 0.88, 1.0) * (style.sternType === "pointed" ? 0.55 : 0.85);
+  const keelDepth = draft * (0.75 + 0.25 * Math.sin(Math.PI * u)) * (1 - counter);
 
   // Deck half-breadth
   const deckHalf = (B * 0.5) * beamScale;
@@ -742,8 +918,12 @@ function sectionPoint(u, s, ship, style) {
   if (s <= 0.72) {
     // Hull side: keel → deck edge
     const t = s / 0.72; // 0..1
-    // Rounded bilge profile
-    const bilge = Math.pow(Math.sin((t * Math.PI) / 2), 0.85);
+    // Rounded bilge profile. A submarine's saddle-tank section is widest
+    // below the waterline and pulls in to a narrow casing on top.
+    const bilge =
+      style.hullForm === "submarine"
+        ? Math.pow(Math.sin(t * Math.PI * 0.82), 0.7)
+        : Math.pow(Math.sin((t * Math.PI) / 2), 0.85);
     const z = st.deckHalf * bilge;
     // y: keel to deck with slight tumblehome near top
     const y = THREE.MathUtils.lerp(st.keelY, st.deckY, t);
@@ -1052,7 +1232,6 @@ function buildFunnels(root, ship, style, mats) {
   const H = ship.height;
   const deckY = stationShape(0.5, ship, style).deckY;
   const topBase = deckY + style.decks * H * 0.16 - 0.02;
-  const ell = style.funnelEllipse;
   const boatBeam = B * (0.9 - (style.decks - 1) * 0.08);
 
   const start = L * style.funnelStart;
@@ -1060,47 +1239,63 @@ function buildFunnels(root, ship, style, mats) {
 
   for (let i = 0; i < n; i++) {
     const t = n === 1 ? 0.5 : i / (n - 1);
-    const fx = start + t * span;
     const rBot = B * (n >= 3 ? 0.11 : 0.13);
-    const rTop = rBot * 0.95;
-    const h = H * (n === 1 ? 0.72 : 0.64);
+    root.add(
+      makeFunnel(ship, style, mats, {
+        x: start + t * span,
+        y: topBase,
+        h: H * (n === 1 ? 0.72 : 0.64),
+        rBot,
+        index: i,
+        stayBeam: boatBeam,
+        pipes: true,
+      })
+    );
+  }
+}
 
-    const stack = new THREE.Group();
-    stack.name = "funnel";
-    stack.position.set(fx, topBase, 0);
-    stack.rotation.z = -style.funnelRake;
-    stack.userData.topY = h * 1.02;
-    stack.userData.stackIndex = i;
-    stack.userData.dummy = Boolean(ship.dummyFunnels?.includes(i));
+/**
+ * One funnel as a group named "funnel" (smoke source, and it can fall).
+ * Local +Y is the funnel axis; userData.topY is its mouth.
+ */
+function makeFunnel(ship, style, mats, { x, y, z = 0, h, rBot, rTop = rBot * 0.95, index = 0, stayBeam = 0, pipes = false, rake = style.funnelRake, ell = style.funnelEllipse, cap = 0.15 }) {
+  const stack = new THREE.Group();
+  stack.name = "funnel";
+  stack.position.set(x, y, z);
+  stack.rotation.z = -rake;
+  stack.userData.topY = h * 1.02;
+  stack.userData.stackIndex = index;
+  stack.userData.dummy = Boolean(ship.dummyFunnels?.includes(index));
 
-    const add = (geo, mat, y, shadow = true) => {
-      const m = new THREE.Mesh(geo, mat);
-      m.position.y = y;
-      m.scale.z = ell;
-      m.castShadow = shadow;
-      stack.add(m);
-      return m;
-    };
+  const add = (geo, mat, y, shadow = true) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.y = y;
+    m.scale.z = ell;
+    m.castShadow = shadow;
+    stack.add(m);
+    return m;
+  };
 
-    add(new THREE.CylinderGeometry(rTop, rBot, h, 40, 1, true), mats.funnel, h / 2);
-    add(new THREE.CylinderGeometry(rBot * 1.06, rBot * 1.1, h * 0.05, 40), mats.funnel, h * 0.025);
-    add(new THREE.CylinderGeometry(rTop * 1.008, rTop * 1.012, h * 0.15, 40, 1, true), mats.black, h * 0.925);
-    // Rolled rim and a dark throat so the open top reads from above
-    const rim = add(new THREE.TorusGeometry(rTop * 1.005, 0.018, 8, 40), mats.black, h, false);
-    rim.rotation.x = Math.PI / 2;
-    rim.scale.set(1, ell, 1);
-    const throat = add(new THREE.CircleGeometry(rTop * 0.98, 40), mats.black, h * 0.93, false);
-    throat.rotation.x = -Math.PI / 2;
-    throat.scale.set(1, ell, 1);
+  add(new THREE.CylinderGeometry(rTop, rBot, h, 40, 1, true), mats.funnel, h / 2);
+  add(new THREE.CylinderGeometry(rBot * 1.06, rBot * 1.1, h * 0.05, 40), mats.funnel, h * 0.025);
+  add(new THREE.CylinderGeometry(rTop * 1.008, rTop * 1.012, h * cap, 40, 1, true), mats.black, h * (1 - cap / 2));
+  // Rolled rim and a dark throat so the open top reads from above
+  const rim = add(new THREE.TorusGeometry(rTop * 1.005, Math.min(0.018, rTop * 0.08), 8, 40), mats.black, h, false);
+  rim.rotation.x = Math.PI / 2;
+  rim.scale.set(1, ell, 1);
+  const throat = add(new THREE.CircleGeometry(rTop * 0.98, 40), mats.black, h * 0.93, false);
+  throat.rotation.x = -Math.PI / 2;
+  throat.scale.set(1, ell, 1);
 
-    for (const frac of ship.funnelBands ?? []) {
-      add(new THREE.CylinderGeometry(rTop * 1.01, rTop * 1.01, h * 0.025, 40, 1, true), mats.black, h * frac, false);
-    }
-    (ship.funnelBandColors ?? []).forEach((color, k) => {
-      const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.1 });
-      add(new THREE.CylinderGeometry(rTop * 1.01, rTop * 1.01, h * 0.05, 40, 1, true), mat, h * (0.82 - k * 0.05), false);
-    });
+  for (const frac of ship.funnelBands ?? []) {
+    add(new THREE.CylinderGeometry(rTop * 1.01, rTop * 1.01, h * 0.025, 40, 1, true), mats.black, h * frac, false);
+  }
+  (ship.funnelBandColors ?? []).forEach((color, k) => {
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.55, metalness: 0.1 });
+    add(new THREE.CylinderGeometry(rTop * 1.01, rTop * 1.01, h * 0.05, 40, 1, true), mat, h * (0.82 - k * 0.05), false);
+  });
 
+  if (pipes) {
     // Steam and whistle pipes on the forward face
     for (const dz of [-0.35, 0.35]) {
       const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, h * 1.02, 6), mats.funnel);
@@ -1108,20 +1303,57 @@ function buildFunnels(root, ship, style, mats) {
       pipe.castShadow = true;
       stack.add(pipe);
     }
+  }
 
+  if (stayBeam > 0) {
     // Guy wires to the deck (they go with the funnel if it falls)
     const stays = [];
     for (const side of [-1, 1]) {
       for (const dx of [-0.6, 0.6]) {
-        stays.push(0, h * 0.78, side * rTop * ell, dx, -0.02, side * boatBeam * 0.45);
+        stays.push(0, h * 0.78, side * rTop * ell, dx, -0.02, side * stayBeam * 0.45);
       }
     }
     const stayGeo = new THREE.BufferGeometry();
     stayGeo.setAttribute("position", new THREE.Float32BufferAttribute(stays, 3));
     stack.add(new THREE.LineSegments(stayGeo, mats.rope));
-
-    root.add(stack);
   }
+  return stack;
+}
+
+/** Hull helpers the warship builders share with the liners. */
+function warshipKit(ship, style, mats) {
+  const L = ship.length;
+  const breakX = L * BREAK_FRACTION;
+  return {
+    breakX,
+    station: (u) => stationShape(u, ship, style),
+    section: (u, s) => sectionPoint(u, s, ship, style),
+    /** Top of the teak/steel deck overlay at station u. */
+    deckAt: (u) => stationShape(u, ship, style).deckY + 0.025,
+    fitToHull: (x0, x1, halfBeam) => fitToHull(x0, x1, halfBeam, ship, style),
+    worldUVBox,
+    transformed,
+    mergedMesh,
+    makeFunnel: (opts) => makeFunnel(ship, style, mats, opts),
+    /**
+     * Box from x0 to x1 centred at (y, z), cut in two at the break so each
+     * half of a broken ship keeps its own piece. `faces` is one material or
+     * the six BoxGeometry face materials; UVs are in world units.
+     */
+    block(parent, x0, x1, y, h, width, faces, { z = 0, uTile = BAY * BAYS, vTile = h, topTile = 2.4, shadow = true } = {}) {
+      const pieces = x0 < breakX && x1 > breakX ? [[x0, breakX], [breakX, x1]] : [[x0, x1]];
+      const out = [];
+      for (const [a, b] of pieces) {
+        const m = new THREE.Mesh(worldUVBox(b - a, h, width, uTile, vTile, topTile), faces);
+        m.position.set((a + b) / 2, y, z);
+        m.castShadow = shadow;
+        m.receiveShadow = true;
+        parent.add(m);
+        out.push(m);
+      }
+      return out;
+    },
+  };
 }
 
 function buildMasts(root, ship, style, mats) {
@@ -1302,16 +1534,22 @@ function buildSternGear(root, ship, style, mats) {
   rudder.name = "rudder";
   root.add(rudder);
 
-  // Wing screws plus a centre screw, bronze, three blades each
+  // Wing screws, plus a centre screw or an inner pair, bronze, three blades each
+  const count = ship.screws ?? (ship.length > 20 ? 3 : 2);
   const screws = [
     [L * 0.44, -draft * 0.58, ship.beam * 0.24],
     [L * 0.44, -draft * 0.58, -ship.beam * 0.24],
   ];
-  if (ship.length > 20) screws.push([L * 0.465, -draft * 0.6, 0]);
+  if (count === 3) screws.push([L * 0.465, -draft * 0.6, 0]);
+  if (count >= 4) {
+    screws.push([L * 0.4, -draft * 0.68, ship.beam * 0.11], [L * 0.4, -draft * 0.68, -ship.beam * 0.11]);
+  }
+  const blade = Math.min(1, ship.beam / 1.4);
   const bladeGeo = new THREE.SphereGeometry(0.1, 10, 8);
   for (const [x, y, z] of screws) {
     const screw = new THREE.Group();
     screw.position.set(x, y, z);
+    screw.scale.setScalar(blade);
     const hub = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), mats.bronze);
     hub.scale.set(1.6, 1, 1);
     screw.add(hub);
@@ -1473,8 +1711,8 @@ export function updateDamageEffects() {
 export function splitShip(root) {
   const ship = root.userData.ship;
   const breakX = ship.length * BREAK_FRACTION;
-  const bow = filterHalf(root, (x) => x <= breakX + 0.05, breakX);
-  const stern = filterHalf(root, (x) => x >= breakX - 0.05, breakX);
+  const bow = filterHalf(root, (x) => x <= breakX + 0.05, breakX, (x) => x <= breakX);
+  const stern = filterHalf(root, (x) => x >= breakX - 0.05, breakX, (x) => x > breakX);
   const capMat = new THREE.MeshStandardMaterial({
     color: 0x1c140f,
     roughness: 0.92,
@@ -1519,7 +1757,7 @@ function cloneMaterial(m) {
   return c;
 }
 
-function filterHalf(root, keepX, breakX) {
+function filterHalf(root, keepX, breakX, keepWholeX) {
   const saved = root.userData;
   root.userData = {};
   const clone = root.clone(true);
@@ -1533,8 +1771,30 @@ function filterHalf(root, keepX, breakX) {
   const toRoot = new THREE.Matrix4();
   const p = new THREE.Vector3();
   const drop = [];
+  const inverseRoot = new THREE.Matrix4().copy(clone.matrixWorld).invert();
+
+  // Turrets, towers and islands go to one half whole, by where they stand.
+  const whole = new Set();
+  const wholeGroups = [];
+  clone.traverse((obj) => {
+    if (obj !== clone && obj.userData.keepWhole) wholeGroups.push(obj);
+  });
+  for (const g of wholeGroups) {
+    if (!keepWholeX(g.getWorldPosition(p).applyMatrix4(inverseRoot).x)) {
+      g.parent?.remove(g);
+      continue;
+    }
+    g.traverse((o) => whole.add(o));
+  }
 
   clone.traverse((obj) => {
+    if (whole.has(obj)) {
+      if (obj.isMesh) {
+        obj.geometry = obj.geometry.clone();
+        obj.material = Array.isArray(obj.material) ? obj.material.map(cloneMaterial) : cloneMaterial(obj.material);
+      }
+      return;
+    }
     // Rigging parts when the hull does; funnel stays go with their funnel.
     if (obj.isLine) {
       if (obj.name === "rigging") drop.push(obj);
